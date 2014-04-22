@@ -21,11 +21,12 @@ public class TestXSD2OWLConverter {
 
 		Source xslSource = new StreamSource(
 				new File(
-						"/Users/RYU/Documents/workspace/IfcTranslateProgram/ifc/xsd2owl.xsl"));
+						"/Users/RYU/git/IfcTranslateProgram/ifc/xsd2owl.xsl"));
 		System.out.println("read xsl end");
 
 		System.out.println("read xsd start");
 		
+		//github≤‚ ‘
 //		InputStreamReader xsdFileReader = new InputStreamReader(
 //				new FileInputStream(
 //						"/Users/RYU/Documents/workspace/IfcTranslateProgram/ifc/testXML4.xsd"));
@@ -52,7 +53,7 @@ public class TestXSD2OWLConverter {
 		result = result.replaceAll("&amp;", "&");
 
 		File file = new File(
-				"/Users/RYU/Documents/workspace/IfcTranslateProgram/ifc/testXML4.xml");
+				"/Users/RYU/git/IfcTranslateProgram/ifc/testXML4.xml");
 
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
 		bufferedWriter.write(result);
