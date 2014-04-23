@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <xsl:stylesheet version="2.0"
-	xmlns:fcn="http://www.liujinhang.cn/ifc/xsd2owl-functions.xsl"
+	xmlns:fcn="http://www.liujinhang.cn/paper/ifc/xsd2owl-functions.xsl"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
 	xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
 	xmlns:xlink="http://www.w3.org/1999/xlink#" xmlns:owl="http://www.w3.org/2002/07/owl#">
@@ -181,8 +181,10 @@
 
 	<!-- 针对在根节点之下定义的element与attribute -->
 	<xsl:template
-		match="xsd:schema/xsd:element[@name] | xsd:schema/xsd:attribute[@name]">
-
+		match="
+			xsd:schema/xsd:element[@name] 
+			| 
+			xsd:schema/xsd:attribute[@name]">
 		<xsl:choose>
 			<!-- DatatypeProperty -->
 			<xsl:when
@@ -212,7 +214,6 @@
 				</rdf:Property>
 			</xsl:otherwise>
 		</xsl:choose>
-
 	</xsl:template>
 
 	<!-- element/attribute => property 转换模板 -->
@@ -231,7 +232,6 @@
 			<xsl:otherwise>
 				<xsl:if test="./xsd:complexType">
 					<rdfs:range>
-						<xsl:message select="." />
 						<xsl:apply-templates />
 					</rdfs:range>
 				</xsl:if>
@@ -239,10 +239,6 @@
 		</xsl:choose>
 	</xsl:template>
 
-		<!-- Match XML Schema complexType or group definitions to generate classes, 
-		if the embededType has a value this is a complex type defined inside and 
-		element, distinguish its name from the name of the element using the embededType 
-		param value -->
 	<!-- processComplexType complexType/group/attributeGroup => class 转换模板 -->
 	<xsl:template name="classTransationTemplate"
 		match="
@@ -256,6 +252,7 @@
 		</xsl:if>
 		<xsl:if test="not(@name)">
 			<xsl:choose>
+				<!-- 为匿名的ComplexType命名，规则为 内包含的element[@name] + Type -->
 				<xsl:when test="parent::xsd:element[@name]">
 					<owl:Class rdf:ID="{../@name}Type">
 						<xsl:apply-templates />
@@ -268,6 +265,203 @@
 				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:if>
+	</xsl:template>
+
+	<!-- complexContent只能出现在complexType之下，且子元素只能是extension或者restriction两者之一，代表着对complexType的扩展或者约束 -->
+	<xsl:template
+		match="
+			xsd:extension[@base and parent::xsd:complexContent] 
+			| 
+			xsd:restriction[@base and parent::xsd:complexContent]">
+		<xsl:if test="not(fcn:isXsdURI(@base, namespace::*))">
+			<rdfs:subClassOf rdf:resource="{fcn:getRdfURI(@base, namespace::*)}" />
+		</xsl:if>
+		<xsl:apply-templates />
+	</xsl:template>
+
+	<!-- 匹配非内嵌于sequence与choice的sequence -->
+	<xsl:template
+		match="
+			xsd:sequence[
+				not(parent::xsd:sequence) and 
+				not(parent::xsd:choice)
+			]">
+		<rdfs:subClassOf>
+			<xsl:call-template name="sequenceTranslationTemplate" />
+		</rdfs:subClassOf>
+	</xsl:template>
+
+	<!-- 匹配非内嵌于sequence与choice的sequence -->
+	<xsl:template
+		match="
+			xsd:choice[
+				not(parent::xsd:sequence) and 
+				not(parent::xsd:choice)]">
+		<rdfs:subClassOf>
+			<xsl:call-template name="choiceTranslationTemplate" />
+		</rdfs:subClassOf>
+	</xsl:template>
+
+	<!-- 匹配all标签 -->
+	<xsl:template match="xsd:all">
+		<rdfs:subClassOf>
+			<xsl:call-template name="sequenceTranslationTemplate" />
+		</rdfs:subClassOf>
+	</xsl:template>
+
+	<!-- intersectionOf 交集 sequence元素以指定的顺序被包含，的确是一个限定 -->
+	<xsl:template name="sequenceTranslationTemplate" match="xsd:sequence">
+		<xsl:choose>
+			<xsl:when test="count(child::*)>0">
+				<owl:Class>
+					<owl:intersectionOf rdf:parseType="Collection">
+						<xsl:apply-templates />
+					</owl:intersectionOf>
+				</owl:Class>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:apply-templates />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<!-- unionOf 并集 choice只允许选出一个元素 -->
+	<xsl:template name="choiceTranslationTemplate" match="xsd:choice">
+		<xsl:choose>
+			<xsl:when test="count(child::*)>0">
+				<owl:Class>
+					<owl:unionOf rdf:parseType="Collection">
+						<xsl:apply-templates />
+					</owl:unionOf>
+				</owl:Class>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:apply-templates />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<!-- 转换complexType中的element，将他们转换为property -->
+	<xsl:template
+		match="
+			xsd:element[
+				@name and 
+				@type and 
+				(ancestor::xsd:complexType or ancestor::xsd:group)
+		]">
+		<owl:Restriction>
+			<owl:onProperty rdf:resource="#{@name}" />
+			<owl:allValuesFrom
+				rdf:resource="{fcn:getDatatypeDefinition(., //xsd:simpleType[@name], namespace::*)}" />
+				
+				<xsl:message>aaa | <xsl:value-of select="fcn:getDatatypeDefinition(., //xsd:simpleType[@name], namespace::*)" /></xsl:message>
+				
+		</owl:Restriction>
+		<!-- 基数转换 -->
+		<xsl:call-template name="cardinalityTranslationTemplate">
+			<xsl:with-param name="min"
+				select="(@minOccurs | parent::*/@minOccurs)[1]" />
+			<xsl:with-param name="max"
+				select="(@maxOccurs | parent::*/@maxOccurs)[1]" />
+			<xsl:with-param name="property" select="@name" />
+			<xsl:with-param name="forceRestriction" select="false()" />
+		</xsl:call-template>
+	</xsl:template>
+
+	<xsl:template name="cardinalityTranslationTemplate">
+		<xsl:param name="min" />
+		<xsl:param name="max" />
+		<xsl:param name="property" />
+		<xsl:param name="forceRestriction" />
+
+		<xsl:variable name="minOccurs">
+			<xsl:choose>
+				<xsl:when test="$min">
+					<xsl:value-of select="$min" />
+				</xsl:when>
+				<xsl:otherwise>
+					1
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+
+		<xsl:variable name="maxOccurs">
+			<xsl:choose>
+				<xsl:when test="$max">
+					<xsl:value-of select="$max" />
+				</xsl:when>
+				<xsl:otherwise>
+					1
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:variable>
+		
+		<!-- <xsl:message select="$property" /> -->
+
+		<xsl:if test="$minOccurs!='0' and contains($property,'&amp;ifc;')">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="{$property}" />
+				<owl:minCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$minOccurs" />
+				</owl:minCardinality>
+			</owl:Restriction>
+		</xsl:if>
+
+		<xsl:if test="$minOccurs!='0' and not(contains($property,'&amp;ifc;'))">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="#{$property}" />
+				<owl:minCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$minOccurs" />
+				</owl:minCardinality>
+			</owl:Restriction>
+
+			<xsl:message><xsl:value-of select="$property" /></xsl:message>
+
+		</xsl:if>
+
+		<xsl:if test="$maxOccurs!='unbounded' and contains($property,'&amp;ifc;')">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="{$property}" />
+				<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$maxOccurs" />
+				</owl:maxCardinality>
+			</owl:Restriction>
+		</xsl:if>
+
+		<xsl:if
+			test="$maxOccurs!='unbounded' and not(contains($property,'&amp;ifc;'))">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="#{$property}" />
+				<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$maxOccurs" />
+				</owl:maxCardinality>
+			</owl:Restriction>
+		</xsl:if>
+
+		If restriction not needed because min=0 and max="unbounded", generate 
+			it if forceRestriction="true" because there is not any other restriction 
+			on the property
+
+		<xsl:if
+			test="$minOccurs='0' and $maxOccurs='unbounded' and $forceRestriction  and contains($property,'&amp;ifc;')">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="{$property}" />
+				<owl:minCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$minOccurs" />
+				</owl:minCardinality>
+			</owl:Restriction>
+		</xsl:if>
+
+		<xsl:if
+			test="$minOccurs='0' and $maxOccurs='unbounded' and $forceRestriction and not(contains($property,'&amp;ifc;'))">
+			<owl:Restriction>
+				<owl:onProperty rdf:resource="#{$property}" />
+				<owl:minCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">
+					<xsl:value-of select="$minOccurs" />
+				</owl:minCardinality>
+			</owl:Restriction>
+		</xsl:if>
+
 	</xsl:template>
 
 </xsl:stylesheet>

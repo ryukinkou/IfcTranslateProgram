@@ -571,7 +571,7 @@
 		<owl:Restriction>
 			<owl:onProperty rdf:resource="#{@name}" />
 			<owl:allValuesFrom
-				rdf:resource="{xo:rangeUri(., //xsd:simpleType[@name], namespace::*)}" />
+				rdf:resource="{fcn:preprocessingDatatype(., //xsd:simpleType[@name], namespace::*)}" />
 		</owl:Restriction>
 		<xsl:call-template name="cardinality">
 			<xsl:with-param name="min"

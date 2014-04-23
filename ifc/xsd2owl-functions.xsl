@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <xsl:stylesheet version="2.0"
-	xmlns:fcn="http://www.liujinhang.cn/ifc/xsd2owl-functions.xsl"
+	xmlns:fcn="http://www.liujinhang.cn/paper/ifc/xsd2owl-functions.xsl"
 	xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:fo="http://www.w3.org/1999/XSL/Format">
 
@@ -51,7 +51,7 @@
 						concat($namespaces[name()=substring-before($uriRef,':')],'#',substring-after($uriRef,':'))" />
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:sequence select=" fcn:getLocalAbsoluteURIByName($uriRef) " />
+				<xsl:sequence select="fcn:getLocalAbsoluteURIByName($uriRef)" />
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:function>
@@ -75,16 +75,30 @@
 		<xsl:param name="namespaces" />
 		<xsl:choose>
 			<xsl:when test="contains($uriRef,':')">
-				<xsl:sequence
-					select="
-					concat
-					( 
-						'&amp;',
-						substring-before($uriRef,':'),
-						';',
-						substring-after($uriRef,':')
-					)
-					" />
+				<xsl:choose>
+					<xsl:when
+						test="contains(substring-before($uriRef,':'),$localXMLSchemaPrefix)">
+						<xsl:sequence
+							select="
+							concat
+							( 
+								'&amp;',
+								'xsd;',
+								substring-after($uriRef,':')
+							)" />
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:sequence
+							select="
+							concat
+							( 
+								'&amp;',
+								substring-before($uriRef,':'),
+								';',
+								substring-after($uriRef,':')
+							)" />
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:choose>
@@ -184,9 +198,7 @@
 		" />
 	</xsl:function>
 
-	<!-- For element and attributes with values defined using a type reference -->
-	<!-- If value simpleType, map it to a OWL supported datatype -->
-	<!-- If value complexType, generate range uri from type reference -->
+	<!-- element为SimpleType的时候，进行数据类型进行转换，element为ComplexType的时候，其数据类型为RdfURI -->
 	<xsl:function name="fcn:getDatatypeDefinition" as="xsd:string">
 		<xsl:param name="element" />
 		<xsl:param name="localSimpleTypes" />
@@ -194,9 +206,11 @@
 		<xsl:choose>
 			<xsl:when
 				test="fcn:isConvertToDatatypeProperty($element, $localSimpleTypes, $namespaces)">
-				<xsl:sequence select="fcn:preprocessingDatatype($element/@type, $namespaces)" />
+				<xsl:sequence
+					select="fcn:preprocessingDatatype($element/@type, $namespaces)" />
 			</xsl:when>
 			<xsl:otherwise>
+				<xsl:message select="$element"></xsl:message>
 				<xsl:sequence select="fcn:getRdfURI($element/@type, $namespaces)" />
 			</xsl:otherwise>
 		</xsl:choose>
