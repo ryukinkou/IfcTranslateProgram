@@ -3,7 +3,7 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="ThirdParty/SaxonHE/saxon9-unpack.jar"/>
 	<classpathentry kind="lib" path="ThirdParty/SaxonHE/saxon9-xqj.jar"/>
-	<classpathentry kind="lib" path="ThirdParty/SaxonHE/saxon9he.jar"/>
+	<classpathentry kind="lib" path="ThirdParty/SaxonHE/saxon9he.jar" sourcepath="ThirdParty/SaxonHE/saxon9-5-1-5source.zip"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
