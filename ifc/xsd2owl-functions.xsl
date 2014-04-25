@@ -246,4 +246,18 @@
 		</xsl:choose>
 	</xsl:function>
 
+	<!-- 获取Rdf:Resource定义 -->
+	<xsl:function name="fcn:getResourceDefinition" as="xsd:string">
+		<xsl:param name="uriRef" />
+		<xsl:choose>
+			<xsl:when test="contains($uriRef,':')">
+				<xsl:sequence select="concat('#',substring-after($uriRef,':'))" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:sequence select="concat('#',$uriRef)" />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:function>
+
+
 </xsl:stylesheet>

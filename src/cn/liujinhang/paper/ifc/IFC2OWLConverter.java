@@ -23,7 +23,7 @@ public class IFC2OWLConverter {
 //						"http://rhizomik.net/redefer-services/xsl/xsd2owl.xsl")
 //						.openStream());
 		
-		Source xslSource = new StreamSource(new File("/Users/RYU/Documents/workspace/IfcTranslateProgram/xsl/xsd2owl.xsl"));
+		Source xslSource = new StreamSource(new File("/Users/RYU/git/IfcTranslateProgram/xsl/xsd2owl.xsl"));
 		System.out.println("read xsl end");
 		
 		System.out.println("read xsd start");
@@ -49,7 +49,7 @@ public class IFC2OWLConverter {
 		result = result.replaceAll("&amp;", "&");
 
 		File file = new File(
-				"/Users/RYU/Documents/workspace/IfcTranslateProgram/xsl/ifcXML4.xml");
+				"/Users/RYU/git/IfcTranslateProgram/xsl/ifcXML4.xml");
 
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
 		bufferedWriter.write(result);
