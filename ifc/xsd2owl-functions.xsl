@@ -207,36 +207,35 @@
 			<xsl:when
 				test="fcn:isConvertToDatatypeProperty($element, $localSimpleTypes, $namespaces)">
 				<xsl:sequence
-					select="fcn:preprocessingDatatype($element/@type, $namespaces)" />
+					select="fcn:getXsdURI($element/@type, $namespaces)" />
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:message select="$element"></xsl:message>
 				<xsl:sequence select="fcn:getRdfURI($element/@type, $namespaces)" />
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:function>
 
 	<!-- Datatype的数据预处理 -->
-	<xsl:function name="fcn:preprocessingDatatype" as="xsd:string">
-		<xsl:param name="datatype" />
+	<xsl:function name="fcn:getXsdURI" as="xsd:string">
+		<xsl:param name="uriRef" />
 		<xsl:param name="namespaces" />
 		<xsl:choose>
-			<xsl:when test="fcn:isXsdURI($datatype, $namespaces)">
+			<xsl:when test="fcn:isXsdURI($uriRef, $namespaces)">
 				<xsl:choose>
-					<xsl:when test="contains($datatype,'ID')">
+					<xsl:when test="contains($uriRef,'ID')">
 						<xsl:sequence select="'&amp;xsd;string'" />
 					</xsl:when>
-					<xsl:when test="contains($datatype,'base64Binary')">
+					<xsl:when test="contains($uriRef,'base64Binary')">
 						<xsl:sequence select="'&amp;xsd;string'" />
 					</xsl:when>
-					<xsl:when test="contains($datatype,'QName')">
+					<xsl:when test="contains($uriRef,'QName')">
 						<xsl:sequence select="'&amp;xsd;string'" />
 					</xsl:when>
-					<xsl:when test="contains($datatype,'hexBinary')">
+					<xsl:when test="contains($uriRef,'hexBinary')">
 						<xsl:sequence select="'&amp;xsd;string'" />
 					</xsl:when>
 					<xsl:otherwise>
-						<xsl:sequence select="fcn:getRdfURI($datatype, $namespaces)" />
+						<xsl:sequence select="fcn:getRdfURI($uriRef, $namespaces)" />
 					</xsl:otherwise>
 				</xsl:choose>
 			</xsl:when>

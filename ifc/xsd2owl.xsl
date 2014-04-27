@@ -215,28 +215,122 @@
 		<xsl:if test="$base">
 			<rdfs:subClassOf rdf:resource="{fcn:getRdfURI($base, namespace::*)}" />
 			<xsl:call-template name="propertyTranslationTemplate">
-				<xsl:with-param name="complexType" select="$complexType" />
+				<xsl:with-param name="properties"
+					select="
+					$complexType/xsd:complexContent/xsd:extension/* 
+					|
+					$complexType/xsd:complexContent/xsd:restriction/*" />
 			</xsl:call-template>
 		</xsl:if>
 	</xsl:template>
-	
-	<xsl:template name="propertyTranslationTemplate" >
-		<xsl:param name="complexType" />
-		<xsl:variable name="properties"
-			select="$complexType/xsd:complexContent/xsd:extension/* 
-					|
-					$complexType/xsd:complexContent/xsd:restriction/*" />
+
+	<xsl:template name="propertyTranslationTemplate">
+		<xsl:param name="properties" />
+		<xsl:param name="isArrayMode" required="no" select="false()" />
 		<xsl:choose>
 			<xsl:when test="count($properties) > 0">
-				<xsl:message>the child: <xsl:value-of select="count($properties)" /></xsl:message>
+				<xsl:for-each select="$properties">
+					<xsl:choose>
+						<!-- 解释element/attribute -->
+						<xsl:when
+							test="
+							./@type and 
+							./@name and
+							(
+							./name() = concat($localXMLSchemaPrefix,':element') or 
+							./name() = concat($localXMLSchemaPrefix,':attribute')
+							)">
+
+							<xsl:if test="$isArrayMode = false()">
+								<!-- 解释type为xsd的属性 -->
+								<xsl:if test="fcn:isXsdURI(./@type,namespace::*)">
+									<rdfs:subClassOf>
+										<owl:Restriction>
+											<owl:onProperty rdf:resource="#{./@name}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getXsdURI(./@type,namespace::*)}" />
+										</owl:Restriction>
+									</rdfs:subClassOf>
+								</xsl:if>
+
+								<!-- 解释type为本地定义的属性 -->
+								<xsl:if test="fcn:isLocalURI(./@type,namespace::*)">
+									<rdfs:subClassOf>
+										<owl:Restriction>
+											<owl:onProperty rdf:resource="#has{./@name}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getRdfURI(./@type,namespace::*)}" />
+										</owl:Restriction>
+									</rdfs:subClassOf>
+								</xsl:if>
+
+							</xsl:if>
+
+							<xsl:if test="$isArrayMode = true()">
+								<!-- 解释type为xsd的属性 -->
+								<xsl:if test="fcn:isXsdURI(./@type,namespace::*)">
+									<owl:Restriction>
+										<owl:onProperty rdf:resource="#{./@name}" />
+										<owl:allValuesFrom rdf:resource="{fcn:getXsdURI(./@type,namespace::*)}" />
+										<!-- TODO 基数定义 -->
+									</owl:Restriction>
+								</xsl:if>
+
+								<!-- 解释type为本地定义的属性 -->
+								<xsl:if test="fcn:isLocalURI(./@type,namespace::*)">
+									<owl:Restriction>
+										<owl:onProperty rdf:resource="#has{./@name}" />
+										<owl:allValuesFrom rdf:resource="{fcn:getRdfURI(./@type,namespace::*)}" />
+										<!-- TODO 基数定义 -->
+									</owl:Restriction>
+								</xsl:if>
+
+							</xsl:if>
+
+						</xsl:when>
+
+						<!-- 解释序列 -->
+						<xsl:when test="./name() = concat($localXMLSchemaPrefix,':sequence')">
+							<xsl:choose>
+								<xsl:when test="count(child::*) = 1">
+									<xsl:call-template name="propertyTranslationTemplate">
+										<xsl:with-param name="properties" select="child::*" />
+									</xsl:call-template>
+								</xsl:when>
+
+								<xsl:when test="count(child::*) > 1">
+									<rdfs:subClassOf>
+										<owl:Class>
+											<owl:intersectionOf rdf:parseType="Collection">
+												<xsl:call-template name="propertyTranslationTemplate">
+													<xsl:with-param name="properties" select="child::*" />
+													<xsl:with-param name="isArrayMode" select="true()" />
+												</xsl:call-template>
+											</owl:intersectionOf>
+										</owl:Class>
+									</rdfs:subClassOf>
+								</xsl:when>
+
+								<xsl:otherwise>
+									<!-- <xsl:apply-templates /> -->
+								</xsl:otherwise>
+							</xsl:choose>
+						</xsl:when>
+
+						<!-- 解释序列 -->
+						<xsl:when test="./name() = concat($localXMLSchemaPrefix,':choice')">
+
+						</xsl:when>
+
+						<!-- 其他 -->
+						<xsl:otherwise>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:for-each>
 			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
 	
-	
-	
-	
-	
-	
-	
+	<!-- simpleType映射 -->
+
+	<!-- 枚举对象映射 group/choice -->
+
 </xsl:stylesheet>
