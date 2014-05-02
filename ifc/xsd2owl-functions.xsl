@@ -122,7 +122,6 @@
 	<!-- 检查该uriRef是否属于XMLSchema命名空间 -->
 	<xsl:function name="fcn:isXsdURI" as="xsd:boolean">
 		<xsl:param name="uriRef" as="xsd:string" />
-		<!-- 命名空间 -->
 		<xsl:param name="namespaces" />
 		<xsl:sequence
 			select=" 
@@ -257,6 +256,5 @@
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:function>
-
 
 </xsl:stylesheet>

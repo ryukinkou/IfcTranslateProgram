@@ -231,6 +231,7 @@
 			<xsl:when test="count($properties) > 0">
 				<xsl:for-each select="$properties">
 					<xsl:choose>
+
 						<!-- 解释element/attribute -->
 						<xsl:when
 							test="
@@ -287,7 +288,7 @@
 
 						</xsl:when>
 
-						<!-- 解释序列 -->
+						<!-- 解释sequence -->
 						<xsl:when test="./name() = concat($localXMLSchemaPrefix,':sequence')">
 							<xsl:choose>
 								<xsl:when test="count(child::*) = 1">
@@ -308,29 +309,94 @@
 										</owl:Class>
 									</rdfs:subClassOf>
 								</xsl:when>
-
 								<xsl:otherwise>
-									<!-- <xsl:apply-templates /> -->
 								</xsl:otherwise>
 							</xsl:choose>
 						</xsl:when>
 
-						<!-- 解释序列 -->
+						<!-- 解释choice -->
 						<xsl:when test="./name() = concat($localXMLSchemaPrefix,':choice')">
-
+							<xsl:choose>
+								<xsl:when test="count(child::*) = 1">
+									<xsl:call-template name="propertyTranslationTemplate">
+										<xsl:with-param name="properties" select="child::*" />
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="count(child::*) > 1">
+									<rdfs:subClassOf>
+										<owl:Class>
+											<owl:unionOf rdf:parseType="Collection">
+												<xsl:call-template name="propertyTranslationTemplate">
+													<xsl:with-param name="properties" select="child::*" />
+													<xsl:with-param name="isArrayMode" select="true()" />
+												</xsl:call-template>
+											</owl:unionOf>
+										</owl:Class>
+									</rdfs:subClassOf>
+								</xsl:when>
+								<xsl:otherwise>
+								</xsl:otherwise>
+							</xsl:choose>
 						</xsl:when>
 
-						<!-- 其他 -->
-						<xsl:otherwise>
-						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:for-each>
 			</xsl:when>
 		</xsl:choose>
 	</xsl:template>
-	
-	<!-- simpleType映射 -->
 
-	<!-- 枚举对象映射 group/choice -->
+	<!-- 转换simpleType -->
+	<xsl:template match="xsd:simpleType">
+
+		<xsl:choose>
+
+			<!-- 转换显式定义的语法糖级simpleType，他们往往只是简单的基本类型包装，转换为datatype -->
+			<xsl:when
+				test="
+					@name and
+					./xsd:restriction/@base and
+					count(./xsd:restriction/xsd:enumeration) = 0 ">
+				<rdfs:Datatype rdf:about="{fcn:getRdfURI(@name,namespace::*)}">
+					<owl:equivalentClass
+						rdf:resource="{fcn:getRdfURI(./xsd:restriction/@base,namespace::*)}" />
+				</rdfs:Datatype>
+			</xsl:when>
+
+			<!-- 转换显式定义的枚举型simpleType，将simpleType本身转换为class，其枚举值转换为它的个体 -->
+			<xsl:when
+				test="
+					@name and
+					./xsd:restriction/@base and
+					count(./xsd:restriction/xsd:enumeration) > 0 ">
+				<xsl:variable name="className" select="@name" />
+				<owl:Class rdf:ID="{$className}" />
+				<xsl:for-each select="./xsd:restriction/child::*">
+					<owl:NamedIndividual rdf:about="{fcn:getRdfURI(./@value,namespace::*)}">
+						<rdf:type rdf:resource="#{$className}" />
+					</owl:NamedIndividual>
+				</xsl:for-each>
+			</xsl:when>
+
+			<!-- 转换显式定义的列表类simpleType -->
+			<xsl:when test="@name and ./xsd:restriction/xsd:simpleType/xsd:list">
+				<rdfs:Datatype>
+					<owl:equivalentClass>
+						<owl:intersectionOf rdf:parseType="Collection">
+							
+						</owl:intersectionOf>
+					</owl:equivalentClass>
+				</rdfs:Datatype>
+			</xsl:when>
+
+			<xsl:otherwise>
+				<xsl:message>
+					the otherwise :
+					<xsl:value-of select="@name" />
+				</xsl:message>
+
+			</xsl:otherwise>
+		</xsl:choose>
+
+	</xsl:template>
 
 </xsl:stylesheet>
