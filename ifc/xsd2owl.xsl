@@ -88,6 +88,8 @@
 			'http://www.w3.org/XML/1998/namespace#' &gt;&#10;</xsl:text>
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY xlink
 			'http://www.w3.org/1999/xlink#' &gt;&#10;</xsl:text>
+		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY owl
+			'http://www.w3.org/2002/07/owl#' &gt;&#10;</xsl:text>
 
 		<xsl:for-each select="$localNamespaces">
 			<!-- 输出 <!ENTITY name() . > -->
@@ -379,24 +381,155 @@
 
 			<!-- 转换显式定义的列表类simpleType -->
 			<xsl:when test="@name and ./xsd:restriction/xsd:simpleType/xsd:list">
-				<rdfs:Datatype>
-					<owl:equivalentClass>
-						<owl:intersectionOf rdf:parseType="Collection">
-							
-						</owl:intersectionOf>
-					</owl:equivalentClass>
-				</rdfs:Datatype>
+
+				<xsl:call-template name="IfcListGenerationTemplate" />
+				
+				<xsl:variable name="minLength"
+					select="./xsd:restriction/xsd:minLength/@value" />
+				<xsl:variable name="maxLength"
+					select="./xsd:restriction/xsd:maxLength/@value" />
+					
+				<xsl:variable name="itemType"
+					select="fcn:getXsdURI(./xsd:restriction/xsd:simpleType/xsd:list/@itemType,namespace::*)" />
+
+				<xsl:choose>
+				
+					<!-- minLength与maxLength相等的时候 -->
+					<xsl:when test="$minLength = &maxLength">
+					</xsl:when>
+					
+					<!-- minLength小于maxLength相等的时候 -->
+					<xsl:when test="$minLength &lt; &maxLength">
+					</xsl:when>
+				
+				</xsl:choose>
+
+				<!-- 1 <= i <= minLength 最小长度内的元素被定义为exactly 1，必须 -->
+				<xsl:for-each select="1 to $minLength">
+					<xsl:message>the first : <xsl:value-of select="." /></xsl:message>
+				</xsl:for-each>
+
+				<!-- 0 < i <= minLength 最小长度与最大长度之间的元素倍定义为max 1，可选 -->
+				<xsl:for-each select="$minLength to $maxLength">
+					<!-- 跳过$minLength位置 -->
+					<xsl:if test=". &gt; $minLength" >
+					
+						<xsl:choose>
+							<xsl:when test=". = $minLength">
+							</xsl:when>
+							<xsl:otherwise>
+							</xsl:otherwise>
+						</xsl:choose>
+					
+						<xsl:message>the second : <xsl:value-of select="." /></xsl:message>
+					</xsl:if>
+					
+				</xsl:for-each>
+				
+				<!-- minLength < i <= maxLength -->
+
+				<!-- 
+				<owl:Class rdf:about="#List-IfcComplexNumber_1">
+					<rdfs:subClassOf rdf:resource="#IfcList" />
+					<rdfs:subClassOf>
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasDouble" />
+							<owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
+							</owl:qualifiedCardinality>
+							<owl:onDataRange rdf:resource="&xsd;double" />
+						</owl:Restriction>
+					</rdfs:subClassOf>
+
+					<rdfs:subClassOf>
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasNext" />
+							<owl:onClass rdf:resource="#List-IfcComplexNumber_2" />
+							<owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
+							</owl:qualifiedCardinality>
+						</owl:Restriction>
+					</rdfs:subClassOf>
+				</owl:Class>
+ 				-->
 			</xsl:when>
 
 			<xsl:otherwise>
-				<xsl:message>
-					the otherwise :
-					<xsl:value-of select="@name" />
-				</xsl:message>
-
 			</xsl:otherwise>
 		</xsl:choose>
 
+	</xsl:template>
+
+	<!-- 列表辅助模板，来源 http://protege.stanford.edu/conference/2006/submissions/slides/7.1_Drummond.pdf 
+		修改针对datatype property -->
+	<xsl:template name="IfcListGenerationTemplate">
+
+		<owl:ObjectProperty rdf:about="{fcn:getRdfURI('hasContents',namespace::*)}" />
+
+		<owl:ObjectProperty rdf:about="{fcn:getRdfURI('hasNext',namespace::*)}">
+			<rdfs:subPropertyOf rdf:resource="#isFollowedBy" />
+		</owl:ObjectProperty>
+
+		<owl:ObjectProperty rdf:about="{fcn:getRdfURI('isFollowedBy',namespace::*)}">
+			<rdf:type rdf:resource="&amp;owl;TransitiveProperty" />
+			<rdfs:range rdf:resource="#IfcList" />
+			<rdfs:domain rdf:resource="#IfcList" />
+		</owl:ObjectProperty>
+
+		<owl:DatatypeProperty rdf:about="{fcn:getRdfURI('hasDouble',namespace::*)}">
+			<rdfs:range rdf:resource="&amp;xsd;double" />
+		</owl:DatatypeProperty>
+
+		<owl:DatatypeProperty rdf:about="{fcn:getRdfURI('hasString',namespace::*)}">
+			<rdfs:range rdf:resource="&amp;xsd;string" />
+		</owl:DatatypeProperty>
+
+		<owl:Class rdf:about="{fcn:getRdfURI('EmptyDoubleList',namespace::*)}">
+			<rdfs:subClassOf rdf:resource="#IfcList" />
+			<rdfs:subClassOf>
+				<owl:Class>
+					<owl:intersectionOf rdf:parseType="Collection">
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasContents" />
+							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
+							</owl:maxCardinality>
+						</owl:Restriction>
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasDouble" />
+							<owl:maxQualifiedCardinality
+								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+							<owl:onDataRange rdf:resource="&amp;xsd;double" />
+						</owl:Restriction>
+					</owl:intersectionOf>
+				</owl:Class>
+			</rdfs:subClassOf>
+		</owl:Class>
+
+		<owl:Class rdf:about="{fcn:getRdfURI('IfcList',namespace::*)}">
+			<rdfs:subClassOf>
+				<owl:Restriction>
+					<owl:onProperty rdf:resource="#isFollowedBy" />
+					<owl:onClass rdf:resource="#IfcList" />
+					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
+					</owl:qualifiedCardinality>
+				</owl:Restriction>
+			</rdfs:subClassOf>
+		</owl:Class>
+
+	</xsl:template>
+
+	<xsl:template name="for-loop">
+		<xsl:param name="i" />
+		<xsl:param name="count" />
+		<xsl:if test="$i &lt; $count">
+			<xsl:message>the a</xsl:message>
+			<xsl:call-template name="for-loop">
+				<xsl:with-param name="i">
+					<xsl:value-of select="$i + 1" />
+				</xsl:with-param>
+				<xsl:with-param name="count">
+					<xsl:value-of select="$count" />
+				</xsl:with-param>
+			</xsl:call-template>
+		</xsl:if>
 	</xsl:template>
 
 </xsl:stylesheet>

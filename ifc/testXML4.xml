@@ -7,6 +7,8 @@
 			'http://www.w3.org/XML/1998/namespace#' >
 	<!ENTITY xlink
 			'http://www.w3.org/1999/xlink#' >
+	<!ENTITY owl
+			'http://www.w3.org/2002/07/owl#' >
 	<!ENTITY
 			ifc '#' >
 ]>
@@ -15077,7 +15079,95 @@
       <owl:equivalentClass rdf:resource="&xsd;long"/>
    </rdfs:Datatype>
    <owl:Class rdf:ID="IfcComplexNumber"/>
+   <owl:ObjectProperty rdf:about="#hasContents"/>
+   <owl:ObjectProperty rdf:about="#hasNext">
+      <rdfs:subPropertyOf rdf:resource="#isFollowedBy"/>
+   </owl:ObjectProperty>
+   <owl:ObjectProperty rdf:about="#isFollowedBy">
+      <rdf:type rdf:resource="&owl;TransitiveProperty"/>
+      <rdfs:range rdf:resource="#IfcList"/>
+      <rdfs:domain rdf:resource="#IfcList"/>
+   </owl:ObjectProperty>
+   <owl:DatatypeProperty rdf:about="#hasDouble">
+      <rdfs:range rdf:resource="&xsd;double"/>
+   </owl:DatatypeProperty>
+   <owl:DatatypeProperty rdf:about="#hasString">
+      <rdfs:range rdf:resource="&xsd;string"/>
+   </owl:DatatypeProperty>
+   <owl:Class rdf:about="#EmptyDoubleList">
+      <rdfs:subClassOf rdf:resource="#IfcList"/>
+      <rdfs:subClassOf>
+         <owl:Class>
+            <owl:intersectionOf rdf:parseType="Collection">
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="#hasContents"/>
+                  <owl:maxCardinality rdf:datatype="&xsd;nonNegativeInteger">0
+							</owl:maxCardinality>
+               </owl:Restriction>
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="#hasDouble"/>
+                  <owl:maxQualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+                  <owl:onDataRange rdf:resource="&xsd;double"/>
+               </owl:Restriction>
+            </owl:intersectionOf>
+         </owl:Class>
+      </rdfs:subClassOf>
+   </owl:Class>
+   <owl:Class rdf:about="#IfcList">
+      <rdfs:subClassOf>
+         <owl:Restriction>
+            <owl:onProperty rdf:resource="#isFollowedBy"/>
+            <owl:onClass rdf:resource="#IfcList"/>
+            <owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
+					</owl:qualifiedCardinality>
+         </owl:Restriction>
+      </rdfs:subClassOf>
+   </owl:Class>
    <owl:Class rdf:ID="IfcCompoundPlaneAngleMeasure"/>
+   <owl:ObjectProperty rdf:about="#hasContents"/>
+   <owl:ObjectProperty rdf:about="#hasNext">
+      <rdfs:subPropertyOf rdf:resource="#isFollowedBy"/>
+   </owl:ObjectProperty>
+   <owl:ObjectProperty rdf:about="#isFollowedBy">
+      <rdf:type rdf:resource="&owl;TransitiveProperty"/>
+      <rdfs:range rdf:resource="#IfcList"/>
+      <rdfs:domain rdf:resource="#IfcList"/>
+   </owl:ObjectProperty>
+   <owl:DatatypeProperty rdf:about="#hasDouble">
+      <rdfs:range rdf:resource="&xsd;double"/>
+   </owl:DatatypeProperty>
+   <owl:DatatypeProperty rdf:about="#hasString">
+      <rdfs:range rdf:resource="&xsd;string"/>
+   </owl:DatatypeProperty>
+   <owl:Class rdf:about="#EmptyDoubleList">
+      <rdfs:subClassOf rdf:resource="#IfcList"/>
+      <rdfs:subClassOf>
+         <owl:Class>
+            <owl:intersectionOf rdf:parseType="Collection">
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="#hasContents"/>
+                  <owl:maxCardinality rdf:datatype="&xsd;nonNegativeInteger">0
+							</owl:maxCardinality>
+               </owl:Restriction>
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="#hasDouble"/>
+                  <owl:maxQualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+                  <owl:onDataRange rdf:resource="&xsd;double"/>
+               </owl:Restriction>
+            </owl:intersectionOf>
+         </owl:Class>
+      </rdfs:subClassOf>
+   </owl:Class>
+   <owl:Class rdf:about="#IfcList">
+      <rdfs:subClassOf>
+         <owl:Restriction>
+            <owl:onProperty rdf:resource="#isFollowedBy"/>
+            <owl:onClass rdf:resource="#IfcList"/>
+            <owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
+					</owl:qualifiedCardinality>
+         </owl:Restriction>
+      </rdfs:subClassOf>
+   </owl:Class>
    <rdfs:Datatype rdf:about="#IfcContextDependentMeasure">
       <owl:equivalentClass rdf:resource="&xsd;double"/>
    </rdfs:Datatype>
