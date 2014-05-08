@@ -270,15 +270,37 @@
 		<xsl:sequence
 			select="fcn:isNameListIgnored($name) or fcn:isNamePatternIgnored($name)" />
 	</xsl:function>
-	
+
 	<xsl:function name="fcn:isSimpleType" as="xsd:boolean">
 		<xsl:param name="object" />
-		<xsl:sequence select=" $object/name() = concat($localXMLSchemaPrefix,':simpleType') " />
+		<xsl:sequence
+			select=" $object/name() = concat($localXMLSchemaPrefix,':simpleType') " />
 	</xsl:function>
-	
+
 	<xsl:function name="fcn:isComplexType" as="xsd:boolean">
 		<xsl:param name="object" />
-		<xsl:sequence select=" $object/name() = concat($localXMLSchemaPrefix,':complexType') " />
+		<xsl:sequence
+			select=" $object/name() = concat($localXMLSchemaPrefix,':complexType') " />
+	</xsl:function>
+
+	<xsl:function name="fcn:getAbsoluteURIRef" as="xsd:string">
+		<xsl:param name="name" />
+		<xsl:choose>
+			<xsl:when test="contains($name,':')">
+				<xsl:if
+					test="substring-before($name,':') = 'xsd' or substring-before($name,':') = $localXMLSchemaPrefix ">
+					<xsl:sequence select="concat('&amp;xsd;',substring-after($name,':'))" />
+				</xsl:if>
+				<xsl:if test="substring-before($name,':') = $targetPrefix">
+					<xsl:sequence
+						select="concat($ontologyBase,'#',substring-after($name,':'))" />
+				</xsl:if>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:sequence select="concat($ontologyBase,'#',$name)" />
+			</xsl:otherwise>
+		</xsl:choose>
+
 	</xsl:function>
 
 </xsl:stylesheet>

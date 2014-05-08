@@ -19,8 +19,7 @@
 	</xsl:character-map>
 
 	<!-- 全局变量定义 -->
-
-	<xsl:variable name="ontologBase">
+	<xsl:variable name="ontologyBase">
 		<xsl:value-of select="'http://liujinhang.cn/paper/ifc/ifcOWL.owl'" />
 	</xsl:variable>
 
@@ -140,34 +139,33 @@
 			<xsl:copy-of select="$localNamespacesTemp/*/namespace::*" />
 
 			<!-- 本体的顶级信息定义，暂时没有 -->
-			<owl:Ontology rdf:about="{$ontologBase}">
+			<owl:Ontology rdf:about="{$ontologyBase}">
 				<rdfs:comment>IFC</rdfs:comment>
 			</owl:Ontology>
 
-			<!-- 模板输出占位符 -->
-			<!-- <xsl:apply-templates /> -->
+			<owl:ObjectProperty rdf:ID="any" />
 
 			<!-- 列表基类 -->
 			<xsl:call-template name="IfcListSuperClassTemplate" />
 
-			<owl:ObjectProperty rdf:ID="any" />
+			<!-- datatypeProperty与ObjectProperty -->
+			<xsl:call-template
+				name="datatypePropertyOrObjectPropertyTranslationTemplate" />
 
-			<xsl:call-template name="datatypeOrObjectPropertyTranslationTemplate" />
-
+			<!-- 模板输出占位符 -->
 			<xsl:apply-templates />
 
 		</rdf:RDF>
 
 	</xsl:template>
 
-	<xsl:template name="datatypeOrObjectPropertyTranslationTemplate">
+	<xsl:template name="datatypePropertyOrObjectPropertyTranslationTemplate">
 
 		<xsl:for-each
 			select=" 
 				//xsd:element [ @name and (ancestor::xsd:complexType or ancestor::xsd:group) 
 				and generate-id()=generate-id(key('properties',@name)[1])
-				and fcn:isNameIgnored(@name) = false() ]
-				|
+				and fcn:isNameIgnored(@name) = false() ] |
 				//xsd:attribute [ @name and (ancestor::xsd:complexType or ancestor::xsd:attributeGroup)
 				and generate-id()=generate-id(key('properties',@name)[1])
 				and fcn:isNameIgnored(@name) = false() ] ">
@@ -182,33 +180,35 @@
 
 			<xsl:choose>
 
-				<!-- 类型为simpleType(非枚举型) -->
+				<!-- simpleType(非枚举型) -->
 				<xsl:when
-					test="$currentType and //xsd:simpleType[@name = substring-after($currentType,':')] and
+					test="
+						$currentType and 
+						//xsd:simpleType[@name = substring-after($currentType,':')] and
 						count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
-					<owl:DatatypeProperty rdf:about="{$ontologBase}#{@name}" />
-					<xsl:message>the type : <xsl:value-of select="$currentName" /> | <xsl:value-of select="$currentType" /></xsl:message>
-				</xsl:when>
-				
-				<!-- 类型为simpleType(枚举型) -->
-				<xsl:when
-					test="$currentType and //xsd:simpleType[@name = substring-after($currentType,':')] and 
-						//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/@base and
-						count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) > 0">
-					<owl:ObjectProperty rdf:about="{$ontologBase}#has{@name}" />
-					<xsl:message>the enum : <xsl:value-of select="$currentName" /> | <xsl:value-of select="$currentType" /></xsl:message>
-				</xsl:when>
-				
-				<!-- 类型为xsd类型 -->
-				<xsl:when
-					test="$currentType and fcn:isXsdURI($currentType,namespace::*) ">
-					<owl:DatatypeProperty rdf:about="{$ontologBase}#{@name}" />
+					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}" />
 				</xsl:when>
 
-				<!-- 类型为complexType -->
+				<!-- simpleType(枚举型) -->
+				<xsl:when
+					test="
+						$currentType and 
+						//xsd:simpleType[@name = substring-after($currentType,':')] and 
+						//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/@base and
+						count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) > 0">
+					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
+				</xsl:when>
+
+				<!-- xsd类型 -->
+				<xsl:when
+					test="$currentType and fcn:isXsdURI($currentType,namespace::*) ">
+					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}" />
+				</xsl:when>
+
+				<!-- 显式complexType -->
 				<xsl:when
 					test="$currentType and //xsd:complexType[@name = substring-after($currentType,':')]">
-					<owl:ObjectProperty rdf:about="{$ontologBase}#has{@name}" />
+					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
 				</xsl:when>
 
 				<!-- 匿名simpleType -->
@@ -233,56 +233,56 @@
 
 	<!-- complexType匹配模板 -->
 	<xsl:template match="xsd:complexType">
+
 		<!-- 匹配显式的complexType定义 -->
 		<xsl:if test="@name and fcn:isNameIgnored(@name) = false()">
-			<owl:Class rdf:about="{$ontologBase}#{@name}">
-				<xsl:call-template name="explicitComplexTypePropertyTranslateTemplate">
+			<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+				<xsl:call-template name="explicitComplexTypePropertyTranslationTemplate">
 					<xsl:with-param name="complexType" select="." />
 				</xsl:call-template>
 			</owl:Class>
 		</xsl:if>
+
 		<!-- 匹配隐式的complexType定义，他们通常都被包围在一个element里面 -->
 		<xsl:if test="not(@name)">
 			<xsl:if test="../@name and fcn:isNameIgnored(../@name) = false()">
-				<owl:Class rdf:about="{$ontologBase}#{../@name}">
-					<!-- TODO，内部处理尚未完成 -->
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef(../@name)}">
+					<!-- TODO -->
 				</owl:Class>
 			</xsl:if>
 		</xsl:if>
 	</xsl:template>
 
 	<!-- 属性组匹配模板 -->
-	<xsl:template match="xsd:attributeGroup[@name]">
-		<xsl:if test="@name and fcn:isNameIgnored(@name) = false()">
-			<owl:Class rdf:about="{$ontologBase}#{@name}">
-				<!-- TODO，内部处理尚未完成 -->
-			</owl:Class>
-		</xsl:if>
+	<xsl:template
+		match="xsd:attributeGroup[@name and fcn:isNameIgnored(@name) = false()]">
+		<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+			<!-- TODO -->
+		</owl:Class>
 	</xsl:template>
 
-	<!-- complexType/element|attribute => property 转换模板 -->
-	<xsl:template name="explicitComplexTypePropertyTranslateTemplate">
+	<!-- 显式定义的complexType的property转换模板 -->
+	<xsl:template name="explicitComplexTypePropertyTranslationTemplate">
 		<xsl:param name="complexType" />
 		<xsl:variable name="base"
-			select="$complexType/xsd:complexContent/xsd:extension/@base 
-					|
-					$complexType/xsd:complexContent/xsd:restriction/@base" />
+			select="
+				$complexType/xsd:complexContent/xsd:extension/@base |
+				$complexType/xsd:complexContent/xsd:restriction/@base" />
 		<xsl:if test="$base">
-			<rdfs:subClassOf rdf:resource="{$ontologBase}#{substring-after($base,':')}" />
+			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef($base)}" />
 			<xsl:call-template name="propertyTranslationTemplate">
 				<xsl:with-param name="properties"
 					select="
-					$complexType/xsd:complexContent/xsd:extension/* 
-					|
-					$complexType/xsd:complexContent/xsd:restriction/*" />
+						$complexType/xsd:complexContent/xsd:extension/* |
+						$complexType/xsd:complexContent/xsd:restriction/*" />
 			</xsl:call-template>
 		</xsl:if>
 	</xsl:template>
 
+	<!-- 属性转换模板 -->
 	<xsl:template name="propertyTranslationTemplate">
 		<xsl:param name="properties" />
 		<xsl:param name="isArrayMode" required="no" select="false()" />
-
 		<xsl:choose>
 			<xsl:when test="count($properties) > 0">
 				<xsl:for-each select="$properties">
@@ -299,114 +299,127 @@
 						<!-- 解释element/attribute -->
 						<xsl:when
 							test="
-							$currentName and $currentType and
-							(./name() = concat($localXMLSchemaPrefix,':element') or 
-							./name() = concat($localXMLSchemaPrefix,':attribute'))">
+								$currentName and $currentType and
+								(./name() = concat($localXMLSchemaPrefix,':element') or 
+								./name() = concat($localXMLSchemaPrefix,':attribute'))">
 
 							<xsl:if test="$isArrayMode = false()">
 
-								<!-- 指向xsd类型 -->
-								<xsl:if test="fcn:isXsdURI($currentType,namespace::*)">
-									<rdfs:subClassOf>
-										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{fcn:getXsdURI($currentType,namespace::*)}" />
-											<!-- TODO 基数定义 -->
-										</owl:Restriction>
-									</rdfs:subClassOf>
-								</xsl:if>
+								<xsl:choose>
 
-								<!-- 指向简单类型(非枚举类型) -->
-								<xsl:if
-									test="//xsd:simpleType[@name = substring-after($currentType,':')] and
+									<!-- 指向xsd类型 -->
+									<xsl:when test="fcn:isXsdURI($currentType,namespace::*)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
+												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
+												<!-- TODO 基数定义 -->
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 指向简单类型(非枚举类型) -->
+									<xsl:when
+										test="//xsd:simpleType[@name = substring-after($currentType,':')] and
 										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
-									<rdfs:subClassOf>
-										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
-											<!-- TODO 基数定义 -->
-										</owl:Restriction>
-									</rdfs:subClassOf>
-								</xsl:if>
-								
-								<!-- 指向简单类型(枚举类型) -->
-								<xsl:if
-									test="//xsd:simpleType[@name = substring-after($currentType,':')] and 
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
+												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
+												<!-- TODO 基数定义 -->
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 指向简单类型(枚举类型) -->
+									<xsl:when
+										test="//xsd:simpleType[@name = substring-after($currentType,':')] and 
 										  //xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/@base and
 										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) > 0">
-									<rdfs:subClassOf>
-										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#has{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
-											<!-- TODO 基数定义 -->
-										</owl:Restriction>
-									</rdfs:subClassOf>
-								</xsl:if>
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
+												<!-- TODO 基数定义 -->
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
 
-								<!-- 指向复杂类型 -->
-								<xsl:if
-									test="//xsd:complexType[@name = substring-after($currentType,':')]">
-									<rdfs:subClassOf>
-										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#has{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
-											<!-- TODO 基数定义 -->
-										</owl:Restriction>
-									</rdfs:subClassOf>
-								</xsl:if>
+									<!-- 指向复杂类型 -->
+									<xsl:when
+										test="//xsd:complexType[@name = substring-after($currentType,':')]">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
+												<!-- TODO 基数定义 -->
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<xsl:otherwise>
+										<!-- TODO 隐式指向定义 -->
+									</xsl:otherwise>
+
+								</xsl:choose>
 
 							</xsl:if>
 
 							<xsl:if test="$isArrayMode = true()">
-								<!-- 指向xsd类型 -->
-								<xsl:if test="fcn:isXsdURI($currentType,namespace::*)">
+
+								<xsl:choose>
+
+									<!-- 指向xsd类型 -->
+									<xsl:when test="fcn:isXsdURI($currentType,namespace::*)">
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{fcn:getXsdURI($currentType,namespace::*)}" />
+											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
 											<!-- TODO 基数定义 -->
 										</owl:Restriction>
-								</xsl:if>
+									</xsl:when>
 
-								<!-- 指向简单类型(非枚举类型) -->
-								<xsl:if
-									test="//xsd:simpleType[@name = substring-after($currentType,':')] and
+									<!-- 指向简单类型(非枚举类型) -->
+									<xsl:when
+										test="//xsd:simpleType[@name = substring-after($currentType,':')] and
 										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
+											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
 											<!-- TODO 基数定义 -->
 										</owl:Restriction>
-								</xsl:if>
-								
-								<!-- 指向简单类型(枚举类型) -->
-								<xsl:if
-									test="//xsd:simpleType[@name = substring-after($currentType,':')] and 
+									</xsl:when>
+
+									<!-- 指向简单类型(枚举类型) -->
+									<xsl:when
+										test="//xsd:simpleType[@name = substring-after($currentType,':')] and 
 										  //xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/@base and
 										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) > 0">
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#has{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
+											<owl:onProperty
+												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
 											<!-- TODO 基数定义 -->
 										</owl:Restriction>
-								</xsl:if>
+									</xsl:when>
 
-								<!-- 指向复杂类型 -->
-								<xsl:if
-									test="//xsd:complexType[@name = substring-after($currentType,':')]">
+									<!-- 指向复杂类型 -->
+									<xsl:when
+										test="//xsd:complexType[@name = substring-after($currentType,':')]">
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="{$ontologBase}#has{$currentName}" />
-											<owl:allValuesFrom
-												rdf:resource="{$ontologBase}#{substring-after($currentType,':')}" />
+											<owl:onProperty
+												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
 											<!-- TODO 基数定义 -->
 										</owl:Restriction>
-								</xsl:if>
+									</xsl:when>
+
+									<xsl:otherwise>
+										<!-- TODO 隐式指向定义 -->
+									</xsl:otherwise>
+
+								</xsl:choose>
 
 							</xsl:if>
 
@@ -473,16 +486,15 @@
 	<xsl:template match="xsd:simpleType">
 
 		<xsl:choose>
-
-			<!-- 转换显式定义的语法糖级simpleType，他们往往只是简单的基本类型包装，转换为datatype -->
+			<!-- 转换显式定义的语法糖级simpleType为datatype -->
 			<xsl:when
 				test="
 					@name and fcn:isNameIgnored(@name) = false() and
 					./xsd:restriction/@base and
 					count(./xsd:restriction/xsd:enumeration) = 0 ">
-				<rdfs:Datatype rdf:about="{$ontologBase}#{@name}">
+				<rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}">
 					<owl:equivalentClass
-						rdf:resource="{fcn:getRdfURI(./xsd:restriction/@base,namespace::*)}" />
+						rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" />
 				</rdfs:Datatype>
 			</xsl:when>
 
@@ -493,10 +505,10 @@
 					./xsd:restriction/@base and
 					count(./xsd:restriction/xsd:enumeration) > 0 ">
 				<xsl:variable name="className" select="@name" />
-				<owl:Class rdf:about="{$ontologBase}#{$className}" />
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($className)}" />
 				<xsl:for-each select="./xsd:restriction/child::*">
-					<owl:NamedIndividual rdf:about="{$ontologBase}#{./@value}">
-						<rdf:type rdf:resource="{$ontologBase}#{$className}" />
+					<owl:NamedIndividual rdf:about="{fcn:getAbsoluteURIRef(./@value)}">
+						<rdf:type rdf:resource="{fcn:getAbsoluteURIRef($className)}" />
 					</owl:NamedIndividual>
 				</xsl:for-each>
 			</xsl:when>
@@ -544,9 +556,11 @@
 			<xsl:when test="$minLength = $maxLength">
 
 				<!-- 一个包装类，为了不改变名称 -->
-				<owl:Class rdf:about="{$ontologBase}#{$classNamePrefix}">
-					<rdfs:subClassOf rdf:resource="#{concat($classNamePrefix,'1')}" />
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
+					<rdfs:subClassOf rdf:resource="#{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
+				
+				<!-- 2014/05/08 -->
 
 				<xsl:for-each select="1 to $minLength">
 					<xsl:choose>
@@ -580,8 +594,8 @@
 			<xsl:when test="$minLength &lt; $maxLength">
 
 				<!-- 一个包装类，为了不改变名称 -->
-				<owl:Class rdf:about="{$ontologBase}#{$classNamePrefix}">
-					<rdfs:subClassOf rdf:resource="{$ontologBase}#{concat($classNamePrefix,'1')}" />
+				<owl:Class rdf:about="{$ontologyBase}#{$classNamePrefix}">
+					<rdfs:subClassOf rdf:resource="{$ontologyBase}#{concat($classNamePrefix,'1')}" />
 				</owl:Class>
 
 				<!-- 区间：1 <= i <= minLength -->
@@ -654,31 +668,31 @@
 	<!-- 列表基类 -->
 	<xsl:template name="IfcListSuperClassTemplate">
 
-		<owl:ObjectProperty rdf:about="{$ontologBase}#hasNext">
-			<rdfs:subPropertyOf rdf:resource="{$ontologBase}#isFollowedBy" />
+		<owl:ObjectProperty rdf:about="{$ontologyBase}#hasNext">
+			<rdfs:subPropertyOf rdf:resource="{$ontologyBase}#isFollowedBy" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{$ontologBase}#isFollowedBy">
+		<owl:ObjectProperty rdf:about="{$ontologyBase}#isFollowedBy">
 			<rdf:type rdf:resource="&amp;owl;TransitiveProperty" />
-			<rdfs:range rdf:resource="{$ontologBase}#IfcList" />
-			<rdfs:domain rdf:resource="{$ontologBase}#IfcList" />
+			<rdfs:range rdf:resource="{$ontologyBase}#IfcList" />
+			<rdfs:domain rdf:resource="{$ontologyBase}#IfcList" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{$ontologBase}#hasContent" />
-		<owl:DatatypeProperty rdf:about="{$ontologBase}#hasValue" />
+		<owl:ObjectProperty rdf:about="{$ontologyBase}#hasContent" />
+		<owl:DatatypeProperty rdf:about="{$ontologyBase}#hasValue" />
 
-		<owl:Class rdf:about="{$ontologBase}#EmptyList">
-			<rdfs:subClassOf rdf:resource="{$ontologBase}#IfcList" />
+		<owl:Class rdf:about="{$ontologyBase}#EmptyList">
+			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologBase}#hasContent" />
+							<owl:onProperty rdf:resource="{$ontologyBase}#hasContent" />
 							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
 							</owl:maxCardinality>
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologBase}#hasValue" />
+							<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
 							<owl:maxQualifiedCardinality
 								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
 							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
@@ -688,18 +702,18 @@
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{$ontologBase}#EndlessList">
-			<rdfs:subClassOf rdf:resource="{$ontologBase}#IfcList" />
+		<owl:Class rdf:about="{$ontologyBase}#EndlessList">
+			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologBase}#hasContent" />
+							<owl:onProperty rdf:resource="{$ontologyBase}#hasContent" />
 							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
 							</owl:maxCardinality>
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologBase}#hasValue" />
+							<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
 							<owl:maxQualifiedCardinality
 								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
 							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
@@ -709,11 +723,11 @@
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{$ontologBase}#IfcList">
+		<owl:Class rdf:about="{$ontologyBase}#IfcList">
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{$ontologBase}#isFollowedBy" />
-					<owl:onClass rdf:resource="{$ontologBase}#IfcList" />
+					<owl:onProperty rdf:resource="{$ontologyBase}#isFollowedBy" />
+					<owl:onClass rdf:resource="{$ontologyBase}#IfcList" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
 				</owl:Restriction>
@@ -730,11 +744,11 @@
 		<!-- 下一个元素是否必须 -->
 		<xsl:param name="isNextItemFixed" select="true()" />
 
-		<owl:Class rdf:about="{$ontologBase}#{$className}">
-			<rdfs:subClassOf rdf:resource="{$ontologBase}#IfcList" />
+		<owl:Class rdf:about="{$ontologyBase}#{$className}">
+			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{$ontologBase}#hasValue" />
+					<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
 					<owl:onDataRange rdf:resource="{$itemType}" />
@@ -743,8 +757,8 @@
 			<xsl:if test="$isNextItemFixed = true()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{$ontologBase}#hasNext" />
-						<owl:onClass rdf:resource="{$ontologBase}#{$nextClassName}" />
+						<owl:onProperty rdf:resource="{$ontologyBase}#hasNext" />
+						<owl:onClass rdf:resource="{$ontologyBase}#{$nextClassName}" />
 						<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 						</owl:qualifiedCardinality>
 					</owl:Restriction>
@@ -753,8 +767,8 @@
 			<xsl:if test="$isNextItemFixed = false()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{$ontologBase}#hasNext" />
-						<owl:onClass rdf:resource="{$ontologBase}#{$nextClassName}" />
+						<owl:onProperty rdf:resource="{$ontologyBase}#hasNext" />
+						<owl:onClass rdf:resource="{$ontologyBase}#{$nextClassName}" />
 						<owl:maxQualifiedCardinality
 							rdf:datatype="&amp;xsd;nonNegativeInteger">1</owl:maxQualifiedCardinality>
 					</owl:Restriction>
