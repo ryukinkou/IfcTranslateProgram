@@ -150,7 +150,6 @@
 		<xsl:param name="object" />
 		<xsl:param name="localSimpleTypes" />
 		<xsl:param name="namespaces" />
-		<xsl:message><xsl:value-of select="fcn:isConvertToDatatypeProperty(.,//xsd:simpleType[@name],namespace::*)" /></xsl:message>
 		<xsl:sequence
 			select="
 			(
@@ -270,6 +269,16 @@
 		<xsl:param name="name" />
 		<xsl:sequence
 			select="fcn:isNameListIgnored($name) or fcn:isNamePatternIgnored($name)" />
+	</xsl:function>
+	
+	<xsl:function name="fcn:isSimpleType" as="xsd:boolean">
+		<xsl:param name="object" />
+		<xsl:sequence select=" $object/name() = concat($localXMLSchemaPrefix,':simpleType') " />
+	</xsl:function>
+	
+	<xsl:function name="fcn:isComplexType" as="xsd:boolean">
+		<xsl:param name="object" />
+		<xsl:sequence select=" $object/name() = concat($localXMLSchemaPrefix,':complexType') " />
 	</xsl:function>
 
 </xsl:stylesheet>
