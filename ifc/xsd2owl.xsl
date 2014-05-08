@@ -19,6 +19,11 @@
 	</xsl:character-map>
 
 	<!-- 全局变量定义 -->
+	
+	<xsl:variable name="ontologBase">
+		<xsl:value-of select="'http://liujinhang.cn/paper/ifc/ifcOWL.owl'" />
+	</xsl:variable>
+	
 	<xsl:variable name="targetNamespace">
 		<xsl:value-of select="/xsd:schema/@targetNamespace" />
 	</xsl:variable>
@@ -30,6 +35,13 @@
 			</xsl:if>
 		</xsl:for-each>
 	</xsl:variable>
+
+	<!-- 忽略列表 -->
+	<xsl:variable name="ignoreNameList"
+		select="'ifcXML','uos','Seq-anyURI','instanceAttributes','pos','arraySize','itemType','cType',nil" />
+
+	<!-- 忽略模式列表 -->
+	<xsl:variable name="ignoreNamePatternList" select="'-wrapper',nil" />
 
 	<xsl:variable name="targetEntity">
 		<!-- 输出 '&' -->
@@ -59,8 +71,7 @@
 				name() = $localXMLSchemaPrefix
 			)]" />
 
-	<!-- 不与xsd:schema下属有命名冲突的元素与属性 -->
-	<!-- 担心重名的一种做法 -->
+	<!-- 实体属性 -->
 	<xsl:key name="entityProperties"
 		match="
 		//xsd:element[
@@ -81,7 +92,7 @@
 		<!-- 输出 '<!DOCTYPE rdf:RDF [' -->
 		<xsl:text disable-output-escaping="yes">&#10;&lt;!DOCTYPE rdf:RDF
 			[&#10;</xsl:text>
-		<!-- 输出 <!ENTITY xsd 'http://www.w3.org/2001/XMLSchema#'> -->
+		<!-- 输出常用的命名空间DTD -->
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY xsd
 			'http://www.w3.org/2001/XMLSchema#' &gt;&#10;</xsl:text>
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY xml
@@ -91,6 +102,7 @@
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY owl
 			'http://www.w3.org/2002/07/owl#' &gt;&#10;</xsl:text>
 
+		<!-- 输出本地命名空间的DTD -->
 		<xsl:for-each select="$localNamespaces">
 			<!-- 输出 <!ENTITY name() . > -->
 			<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY
@@ -128,13 +140,18 @@
 			<xsl:copy-of select="$localNamespacesTemp/*/namespace::*" />
 
 			<!-- 本体的顶级信息定义，暂时没有 -->
-			<owl:Ontology rdf:about="">
+			<owl:Ontology rdf:about="{$ontologBase}">
 				<rdfs:comment>IFC</rdfs:comment>
 			</owl:Ontology>
 
 			<!-- 模板输出占位符 -->
 			<xsl:apply-templates />
 
+			<!-- 列表基类 -->
+			<xsl:call-template name="IfcListSuperClassTemplate" />
+			
+			
+			
 			<owl:ObjectProperty rdf:ID="any" />
 
 			<xsl:for-each
@@ -143,7 +160,8 @@
 					@name 
 					and (ancestor::xsd:complexType or ancestor::xsd:group)
 					and generate-id()=generate-id(key('entityProperties',@name)[1])
-				]|
+				]
+				|
 				//xsd:attribute [ 
 					@name
 					and (ancestor::xsd:complexType or ancestor::xsd:attributeGroup) 
@@ -153,19 +171,24 @@
 
 				<xsl:variable name="currentName">
 					<xsl:value-of select="@name" />
-				</xsl:variable>
-
+					</xsl:variable>
+					
+				<xsl:if test="@name = 'ActualDate'">
+					<xsl:message>the name : <xsl:value-of select="fcn:isConvertToDatatypeProperty(.,//xsd:simpleType[@name],namespace::*)" /></xsl:message>
+					<xsl:message>the name : <xsl:value-of select="fcn:isConvertToObjectProperty(.,//xsd:complexType[@name],namespace::*)" /></xsl:message>
+				</xsl:if>
+					
 				<xsl:choose>
-
+					
 					<!-- 转换为DatatypeProperty -->
 					<xsl:when
-						test="fcn:isConvertToDatatypeProperty(.,//xsd:complexType[@name],namespace::*)">
+						test="fcn:isConvertToDatatypeProperty(.,//xsd:simplexType[@name],namespace::*)">
 						<owl:DatatypeProperty rdf:ID="{@name}" />
 					</xsl:when>
 
 					<!-- 转换为ObjectProperty -->
 					<xsl:when
-						test="fcn:isConvertToObjectProperty(.,//xsd:simpleType[@name],namespace::*)">
+						test="fcn:isConvertToObjectProperty(.,//xsd:compleType[@name],namespace::*)">
 						<owl:ObjectProperty rdf:ID="has{@name}" />
 					</xsl:when>
 
@@ -181,9 +204,10 @@
 
 	</xsl:template>
 
+	<!-- complexType匹配模板 -->
 	<xsl:template match="xsd:complexType">
 		<!-- 匹配显式的complexType定义 -->
-		<xsl:if test="@name">
+		<xsl:if test="@name and fcn:isNameIgnored(@name) = false()">
 			<owl:Class rdf:ID="{@name}">
 				<xsl:call-template name="explicitComplexTypePropertyTranslateTemplate">
 					<xsl:with-param name="complexType" select="." />
@@ -192,17 +216,19 @@
 		</xsl:if>
 		<!-- 匹配隐式的complexTyp定义，他们通常都被包围在一个element里面 -->
 		<xsl:if test="not(@name)">
-			<xsl:if test="parent::xsd:element[@name]">
+			<xsl:if test="../@name and fcn:isNameIgnored(../@name) = false()">
+				<owl:Class rdf:ID="{../@name}">
+					<!-- TODO，内部处理尚未完成 -->
+				</owl:Class>
 			</xsl:if>
-			<owl:Class rdf:ID="{../@name}">
-			</owl:Class>
 		</xsl:if>
 	</xsl:template>
 
+	<!-- 属性组匹配模板 -->
 	<xsl:template match="xsd:attributeGroup[@name]">
-		<xsl:if test="@name">
+		<xsl:if test="@name and fcn:isNameIgnored(@name) = false()">
 			<owl:Class rdf:ID="{@name}">
-				<xsl:apply-templates />
+				<!-- TODO，内部处理尚未完成 -->
 			</owl:Class>
 		</xsl:if>
 	</xsl:template>
@@ -233,7 +259,6 @@
 			<xsl:when test="count($properties) > 0">
 				<xsl:for-each select="$properties">
 					<xsl:choose>
-
 						<!-- 解释element/attribute -->
 						<xsl:when
 							test="
@@ -249,8 +274,9 @@
 								<xsl:if test="fcn:isXsdURI(./@type,namespace::*)">
 									<rdfs:subClassOf>
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="#{./@name}" />
+											<owl:onProperty rdf:resource="{$ontologBase}#{./@name}" />
 											<owl:allValuesFrom rdf:resource="{fcn:getXsdURI(./@type,namespace::*)}" />
+											<!-- TODO 基数定义 -->
 										</owl:Restriction>
 									</rdfs:subClassOf>
 								</xsl:if>
@@ -259,8 +285,9 @@
 								<xsl:if test="fcn:isLocalURI(./@type,namespace::*)">
 									<rdfs:subClassOf>
 										<owl:Restriction>
-											<owl:onProperty rdf:resource="#has{./@name}" />
+											<owl:onProperty rdf:resource="{$ontologBase}#has{./@name}" />
 											<owl:allValuesFrom rdf:resource="{fcn:getRdfURI(./@type,namespace::*)}" />
+											<!-- TODO 基数定义 -->
 										</owl:Restriction>
 									</rdfs:subClassOf>
 								</xsl:if>
@@ -271,7 +298,7 @@
 								<!-- 解释type为xsd的属性 -->
 								<xsl:if test="fcn:isXsdURI(./@type,namespace::*)">
 									<owl:Restriction>
-										<owl:onProperty rdf:resource="#{./@name}" />
+										<owl:onProperty rdf:resource="{$ontologBase}#{./@name}" />
 										<owl:allValuesFrom rdf:resource="{fcn:getXsdURI(./@type,namespace::*)}" />
 										<!-- TODO 基数定义 -->
 									</owl:Restriction>
@@ -280,7 +307,7 @@
 								<!-- 解释type为本地定义的属性 -->
 								<xsl:if test="fcn:isLocalURI(./@type,namespace::*)">
 									<owl:Restriction>
-										<owl:onProperty rdf:resource="#has{./@name}" />
+										<owl:onProperty rdf:resource="{$ontologBase}#has{./@name}" />
 										<owl:allValuesFrom rdf:resource="{fcn:getRdfURI(./@type,namespace::*)}" />
 										<!-- TODO 基数定义 -->
 									</owl:Restriction>
@@ -355,7 +382,7 @@
 			<!-- 转换显式定义的语法糖级simpleType，他们往往只是简单的基本类型包装，转换为datatype -->
 			<xsl:when
 				test="
-					@name and
+					@name and fcn:isNameIgnored(@name) = false() and
 					./xsd:restriction/@base and
 					count(./xsd:restriction/xsd:enumeration) = 0 ">
 				<rdfs:Datatype rdf:about="{fcn:getRdfURI(@name,namespace::*)}">
@@ -367,7 +394,7 @@
 			<!-- 转换显式定义的枚举型simpleType，将simpleType本身转换为class，其枚举值转换为它的个体 -->
 			<xsl:when
 				test="
-					@name and
+					@name and fcn:isNameIgnored(@name) = false() and
 					./xsd:restriction/@base and
 					count(./xsd:restriction/xsd:enumeration) > 0 ">
 				<xsl:variable name="className" select="@name" />
@@ -380,125 +407,157 @@
 			</xsl:when>
 
 			<!-- 转换显式定义的列表类simpleType -->
-			<xsl:when test="@name and ./xsd:restriction/xsd:simpleType/xsd:list">
+			<xsl:when
+				test="@name and fcn:isNameIgnored(@name) = false() and
+			 		 ./xsd:restriction/xsd:simpleType/xsd:list">
+
+				<xsl:variable name="classNamePrefix" select="@name" />
 
 				<xsl:variable name="minLength"
 					select="./xsd:restriction/xsd:minLength/@value" />
+
 				<xsl:variable name="maxLength"
 					select="./xsd:restriction/xsd:maxLength/@value" />
+
 				<xsl:variable name="itemType"
 					select="fcn:getXsdURI(./xsd:restriction/xsd:simpleType/xsd:list/@itemType,namespace::*)" />
-				<xsl:variable name="classNamePrefix" select="concat(@name,'_')" />
 
-				<xsl:call-template name="IfcListGenerationTemplate" />
+				<xsl:call-template name="IfcListTemplate">
+					<xsl:with-param name="classNamePrefix" select="$classNamePrefix" />
+					<xsl:with-param name="minLength" select="$minLength" />
+					<xsl:with-param name="maxLength" select="$maxLength" />
+					<xsl:with-param name="itemType" select="$itemType" />
+				</xsl:call-template>
 
-				<xsl:choose>
-					<!-- minLength与maxLength相等的时候 -->
-					<xsl:when test="$minLength = $maxLength">
-						<xsl:for-each select="1 to $minLength">
-							<xsl:choose>
-
-								<!-- 列表尾部元素处理，hasNext为EmptyList -->
-								<xsl:when test=". = $minLength">
-									<xsl:call-template name="IfcListItemTemplate">
-										<xsl:with-param name="className"
-											select="concat($classNamePrefix,.)" />
-										<xsl:with-param name="nextClassName" select="'EmptyList'" />
-										<xsl:with-param name="itemType" select="$itemType" />
-										<xsl:with-param name="isNextItemFixed" select="true()" />
-									</xsl:call-template>
-								</xsl:when>
-
-								<xsl:otherwise>
-									<!-- 列表对象处理 -->
-									<xsl:call-template name="IfcListItemTemplate">
-										<xsl:with-param name="className"
-											select="concat($classNamePrefix,.)" />
-										<xsl:with-param name="nextClassName"
-											select="concat($classNamePrefix,sum(.,1))" />
-										<xsl:with-param name="itemType" select="$itemType" />
-										<xsl:with-param name="isNextItemFixed" select="true()" />
-									</xsl:call-template>
-								</xsl:otherwise>
-
-							</xsl:choose>
-						</xsl:for-each>
-					</xsl:when>
-
-					<!-- minLength小于maxLength相等的时候 -->
-					<xsl:when test="$minLength &lt; $maxLength">
-						<!-- 区间：1 <= i <= minLength -->
-						<xsl:for-each select="1 to $minLength">
-							<xsl:choose>
-								<!-- 区间尾部元素，hasNext为非必须项 -->
-								<xsl:when test=". = $minLength">
-									<xsl:call-template name="IfcListItemTemplate">
-										<xsl:with-param name="className"
-											select="concat($classNamePrefix,.)" />
-										<xsl:with-param name="nextClassName"
-											select="concat($classNamePrefix,sum(.,1))" />
-										<xsl:with-param name="itemType" select="$itemType" />
-										<xsl:with-param name="isNextItemFixed" select="false()" />
-									</xsl:call-template>
-								</xsl:when>
-								<!-- 区间元素，hasNext为必须项 -->
-								<xsl:otherwise>
-									<xsl:call-template name="IfcListItemTemplate">
-										<xsl:with-param name="className"
-											select="concat($classNamePrefix,.)" />
-										<xsl:with-param name="nextClassName"
-											select="concat($classNamePrefix,sum(.,1))" />
-										<xsl:with-param name="itemType" select="$itemType" />
-										<xsl:with-param name="isNextItemFixed" select="true()" />
-									</xsl:call-template>
-								</xsl:otherwise>
-								
-							</xsl:choose>
-						</xsl:for-each>
-
-						<!-- 区间：minLength < i <= maxLength -->
-						<xsl:for-each select="$minLength to $maxLength">
-							<!-- 跳过$minLength位置 -->
-							<xsl:if test=". &gt; $minLength">
-								<xsl:choose>
-									<!-- 区间尾部元素 hasNext为EmptyList -->
-									<xsl:when test=". = $minLength">
-										<xsl:call-template name="IfcListItemTemplate">
-											<xsl:with-param name="className"
-												select="concat($classNamePrefix,.)" />
-											<xsl:with-param name="nextClassName" select="'EmptyList'" />
-											<xsl:with-param name="itemType" select="$itemType" />
-											<xsl:with-param name="isNextItemFixed" select="true()" />
-										</xsl:call-template>
-									</xsl:when>
-									<!-- 区间元素 hasNext为非必须项 -->
-									<xsl:otherwise>
-										<xsl:call-template name="IfcListItemTemplate">
-											<xsl:with-param name="className"
-												select="concat($classNamePrefix,.)" />
-											<xsl:with-param name="nextClassName"
-												select="concat($classNamePrefix,sum(.,1))" />
-											<xsl:with-param name="itemType" select="$itemType" />
-											<xsl:with-param name="isNextItemFixed" select="false()" />
-										</xsl:call-template>
-									</xsl:otherwise>
-									
-								</xsl:choose>
-							</xsl:if>
-						</xsl:for-each>
-					</xsl:when>
-				</xsl:choose>
 			</xsl:when>
-			
+
 			<xsl:otherwise>
+				<!-- nothing but ignore things -->
 			</xsl:otherwise>
 		</xsl:choose>
 
 	</xsl:template>
 
-	<!-- 列表辅助模板，来源 http://protege.stanford.edu/conference/2006/submissions/slides/7.1_Drummond.pdf 
-		修改针对datatype property -->
-	<xsl:template name="IfcListGenerationTemplate">
+	<xsl:template name="IfcListTemplate">
+		<xsl:param name="classNamePrefix" />
+		<xsl:param name="minLength" />
+		<xsl:param name="maxLength" />
+		<xsl:param name="itemType" />
+
+		<xsl:choose>
+			<!-- minLength与maxLength相等的时候 -->
+			<xsl:when test="$minLength = $maxLength">
+
+				<!-- 一个包装类，为了不改变名称 -->
+				<owl:Class rdf:about="#{$classNamePrefix}">
+					<rdfs:subClassOf rdf:resource="#{concat($classNamePrefix,'1')}" />
+				</owl:Class>
+
+				<xsl:for-each select="1 to $minLength">
+					<xsl:choose>
+
+						<!-- 列表尾部元素处理，hasNext为EmptyList -->
+						<xsl:when test=". = $minLength">
+							<xsl:call-template name="IfcListItemTemplate">
+								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
+								<xsl:with-param name="nextClassName" select="'EmptyList'" />
+								<xsl:with-param name="itemType" select="$itemType" />
+								<xsl:with-param name="isNextItemFixed" select="true()" />
+							</xsl:call-template>
+						</xsl:when>
+
+						<xsl:otherwise>
+							<!-- 列表对象处理 -->
+							<xsl:call-template name="IfcListItemTemplate">
+								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
+								<xsl:with-param name="nextClassName"
+									select="concat($classNamePrefix,(. + 1))" />
+								<xsl:with-param name="itemType" select="$itemType" />
+								<xsl:with-param name="isNextItemFixed" select="true()" />
+							</xsl:call-template>
+						</xsl:otherwise>
+
+					</xsl:choose>
+				</xsl:for-each>
+			</xsl:when>
+
+			<!-- minLength小于maxLength相等的时候 -->
+			<xsl:when test="$minLength &lt; $maxLength">
+
+				<!-- 一个包装类，为了不改变名称 -->
+				<owl:Class rdf:about="#{$classNamePrefix}">
+					<rdfs:subClassOf rdf:resource="#{concat($classNamePrefix,'1')}" />
+				</owl:Class>
+
+				<!-- 区间：1 <= i <= minLength -->
+				<xsl:for-each select="1 to $minLength">
+					<xsl:choose>
+						<!-- 区间尾部元素，hasNext为非必须项 -->
+						<xsl:when test=". = $minLength">
+							<xsl:call-template name="IfcListItemTemplate">
+								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
+								<xsl:with-param name="nextClassName"
+									select="concat($classNamePrefix,(. + 1))" />
+								<xsl:with-param name="itemType" select="$itemType" />
+								<xsl:with-param name="isNextItemFixed" select="false()" />
+							</xsl:call-template>
+						</xsl:when>
+						<!-- 区间元素，hasNext为必须项 -->
+						<xsl:otherwise>
+							<xsl:call-template name="IfcListItemTemplate">
+								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
+								<xsl:with-param name="nextClassName"
+									select="concat($classNamePrefix,(. + 1))" />
+								<xsl:with-param name="itemType" select="$itemType" />
+								<xsl:with-param name="isNextItemFixed" select="true()" />
+							</xsl:call-template>
+						</xsl:otherwise>
+
+					</xsl:choose>
+				</xsl:for-each>
+
+				<!-- 区间：minLength < i <= maxLength -->
+				<xsl:for-each select="$minLength to $maxLength">
+					<!-- 跳过$minLength位置 -->
+					<xsl:if test=". &gt; $minLength">
+						<xsl:choose>
+							<!-- 区间尾部元素 hasNext为EmptyList -->
+							<xsl:when test=". = $maxLength">
+								<xsl:call-template name="IfcListItemTemplate">
+									<xsl:with-param name="className"
+										select="concat($classNamePrefix,.)" />
+									<xsl:with-param name="nextClassName" select="'EmptyList'" />
+									<xsl:with-param name="itemType" select="$itemType" />
+									<xsl:with-param name="isNextItemFixed" select="true()" />
+								</xsl:call-template>
+							</xsl:when>
+							<!-- 区间元素 hasNext为非必须项 -->
+							<xsl:otherwise>
+								<xsl:call-template name="IfcListItemTemplate">
+									<xsl:with-param name="className"
+										select="concat($classNamePrefix,.)" />
+									<xsl:with-param name="nextClassName"
+										select="concat($classNamePrefix,(. + 1))" />
+									<xsl:with-param name="itemType" select="$itemType" />
+									<xsl:with-param name="isNextItemFixed" select="false()" />
+								</xsl:call-template>
+							</xsl:otherwise>
+
+						</xsl:choose>
+					</xsl:if>
+				</xsl:for-each>
+			</xsl:when>
+
+			<xsl:otherwise>
+				<!-- nothing -->
+			</xsl:otherwise>
+
+		</xsl:choose>
+
+	</xsl:template>
+
+	<!-- 列表基类 -->
+	<xsl:template name="IfcListSuperClassTemplate">
 
 		<owl:ObjectProperty rdf:about="{fcn:getRdfURI('hasNext',namespace::*)}">
 			<rdfs:subPropertyOf rdf:resource="#isFollowedBy" />
@@ -526,7 +585,29 @@
 						<owl:Restriction>
 							<owl:onProperty rdf:resource="#hasValue" />
 							<owl:maxQualifiedCardinality
-								rdf:datatype="&amp;xsd;anySimpleType">0</owl:maxQualifiedCardinality>
+								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
+						</owl:Restriction>
+					</owl:intersectionOf>
+				</owl:Class>
+			</rdfs:subClassOf>
+		</owl:Class>
+
+		<owl:Class rdf:about="{fcn:getRdfURI('EndlessList',namespace::*)}">
+			<rdfs:subClassOf rdf:resource="#IfcList" />
+			<rdfs:subClassOf>
+				<owl:Class>
+					<owl:intersectionOf rdf:parseType="Collection">
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasContent" />
+							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
+							</owl:maxCardinality>
+						</owl:Restriction>
+						<owl:Restriction>
+							<owl:onProperty rdf:resource="#hasValue" />
+							<owl:maxQualifiedCardinality
+								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
 						</owl:Restriction>
 					</owl:intersectionOf>
 				</owl:Class>
@@ -553,6 +634,7 @@
 		<xsl:param name="itemType" />
 		<!-- 下一个元素是否必须 -->
 		<xsl:param name="isNextItemFixed" select="true()" />
+
 		<owl:Class rdf:about="#{$className}">
 			<rdfs:subClassOf rdf:resource="#IfcList" />
 			<rdfs:subClassOf>

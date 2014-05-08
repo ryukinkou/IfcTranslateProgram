@@ -145,11 +145,12 @@
 			)" />
 	</xsl:function>
 
-	<!-- 下列对象将会转换为DatatypeProperty： 1，对象的类型属于XML Schema范畴 2，匿名SimpleType 3，对象的类型属于本地的SimpleType范畴 -->
+	<!-- 下列对象将会转换为DatatypeProperty： 1，对象的类型属于XML Schema范畴 2，匿名SimpleType 3，对象的类型是xsd包装类 -->
 	<xsl:function name="fcn:isConvertToDatatypeProperty" as="xsd:boolean">
 		<xsl:param name="object" />
 		<xsl:param name="localSimpleTypes" />
 		<xsl:param name="namespaces" />
+		<xsl:message><xsl:value-of select="fcn:isConvertToDatatypeProperty(.,//xsd:simpleType[@name],namespace::*)" /></xsl:message>
 		<xsl:sequence
 			select="
 			(
@@ -165,11 +166,8 @@
 			( 
 				$object/@type
 				and fcn:isLocalURI($object/@type,$namespaces)
-				and count
-				(
-					$localSimpleTypes[
-						 fcn:getAbsoluteURI(@name, $namespaces) = fcn:getAbsoluteURI($object/@type, $namespaces)
-				]) > 0
+				and count($localSimpleTypes[substring-after($object/@type,':')]) = 1
+				and fcn:isXsdURI($localSimpleTypes[substring-after($object/@type,':')]/xsd:restriction/@base,$namespaces)
 			) " />
 	</xsl:function>
 
@@ -205,8 +203,7 @@
 		<xsl:choose>
 			<xsl:when
 				test="fcn:isConvertToDatatypeProperty($element, $localSimpleTypes, $namespaces)">
-				<xsl:sequence
-					select="fcn:getXsdURI($element/@type, $namespaces)" />
+				<xsl:sequence select="fcn:getXsdURI($element/@type, $namespaces)" />
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:sequence select="fcn:getRdfURI($element/@type, $namespaces)" />
@@ -255,6 +252,24 @@
 				<xsl:sequence select="concat('#',$uriRef)" />
 			</xsl:otherwise>
 		</xsl:choose>
+	</xsl:function>
+
+	<xsl:function name="fcn:isNameListIgnored" as="xsd:boolean">
+		<xsl:param name="name" />
+		<xsl:sequence
+			select="sum(for $ignoreName in $ignoreNameList return (($ignoreName = $name) cast as xsd:integer)) != 0" />
+	</xsl:function>
+
+	<xsl:function name="fcn:isNamePatternIgnored" as="xsd:boolean">
+		<xsl:param name="name" />
+		<xsl:sequence
+			select="sum(for $ignoreNamePattern in $ignoreNamePatternList return (contains($name,$ignoreNamePattern) cast as xsd:integer)) != 0" />
+	</xsl:function>
+
+	<xsl:function name="fcn:isNameIgnored" as="xsd:boolean">
+		<xsl:param name="name" />
+		<xsl:sequence
+			select="fcn:isNameListIgnored($name) or fcn:isNamePatternIgnored($name)" />
 	</xsl:function>
 
 </xsl:stylesheet>
