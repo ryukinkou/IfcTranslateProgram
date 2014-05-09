@@ -539,7 +539,7 @@
 			</xsl:when>
 
 			<xsl:otherwise>
-				<!-- nothing but ignore things -->
+				<!-- TODO need check -->
 			</xsl:otherwise>
 		</xsl:choose>
 
@@ -557,10 +557,8 @@
 
 				<!-- 一个包装类，为了不改变名称 -->
 				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
-					<rdfs:subClassOf rdf:resource="#{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+					<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
-				
-				<!-- 2014/05/08 -->
 
 				<xsl:for-each select="1 to $minLength">
 					<xsl:choose>
@@ -593,9 +591,9 @@
 			<!-- minLength小于maxLength相等的时候 -->
 			<xsl:when test="$minLength &lt; $maxLength">
 
-				<!-- 一个包装类，为了不改变名称 -->
-				<owl:Class rdf:about="{$ontologyBase}#{$classNamePrefix}">
-					<rdfs:subClassOf rdf:resource="{$ontologyBase}#{concat($classNamePrefix,'1')}" />
+				<!-- 包装列表的首个元素 -->
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
+					<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<!-- 区间：1 <= i <= minLength -->
@@ -668,31 +666,31 @@
 	<!-- 列表基类 -->
 	<xsl:template name="IfcListSuperClassTemplate">
 
-		<owl:ObjectProperty rdf:about="{$ontologyBase}#hasNext">
-			<rdfs:subPropertyOf rdf:resource="{$ontologyBase}#isFollowedBy" />
+		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('hasNext')}">
+			<rdfs:subPropertyOf rdf:resource="{fcn:getAbsoluteURIRef('isFollowedBy')}" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{$ontologyBase}#isFollowedBy">
+		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('isFollowedBy')}">
 			<rdf:type rdf:resource="&amp;owl;TransitiveProperty" />
-			<rdfs:range rdf:resource="{$ontologyBase}#IfcList" />
-			<rdfs:domain rdf:resource="{$ontologyBase}#IfcList" />
+			<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+			<rdfs:domain rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{$ontologyBase}#hasContent" />
-		<owl:DatatypeProperty rdf:about="{$ontologyBase}#hasValue" />
+		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('hasContent')}" />
+		<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef('hasValue')}" />
 
-		<owl:Class rdf:about="{$ontologyBase}#EmptyList">
-			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
+		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('EmptyList')}">
+			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologyBase}#hasContent" />
+							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasContent')}" />
 							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
 							</owl:maxCardinality>
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
+							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
 							<owl:maxQualifiedCardinality
 								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
 							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
@@ -702,32 +700,29 @@
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{$ontologyBase}#EndlessList">
-			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
+		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('LoopList')}">
+			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologyBase}#hasContent" />
-							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
-							</owl:maxCardinality>
+							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasContent')}" />
+							<owl:allValuesFrom rdf:resource="&amp;owl;Thing"/>
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
-							<owl:maxQualifiedCardinality
-								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
-							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
+							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
+							<owl:allValuesFrom rdf:resource="&amp;xsd;anySimpleType"/>
 						</owl:Restriction>
 					</owl:intersectionOf>
 				</owl:Class>
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{$ontologyBase}#IfcList">
+		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('IfcList')}">
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{$ontologyBase}#isFollowedBy" />
-					<owl:onClass rdf:resource="{$ontologyBase}#IfcList" />
+					<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('isFollowedBy')}" />
+					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
 				</owl:Restriction>
@@ -744,11 +739,11 @@
 		<!-- 下一个元素是否必须 -->
 		<xsl:param name="isNextItemFixed" select="true()" />
 
-		<owl:Class rdf:about="{$ontologyBase}#{$className}">
-			<rdfs:subClassOf rdf:resource="{$ontologyBase}#IfcList" />
+		<owl:Class rdf:about="{fcn:getAbsoluteURIRef($className)}">
+			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{$ontologyBase}#hasValue" />
+					<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
 					<owl:onDataRange rdf:resource="{$itemType}" />
@@ -757,8 +752,8 @@
 			<xsl:if test="$isNextItemFixed = true()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{$ontologyBase}#hasNext" />
-						<owl:onClass rdf:resource="{$ontologyBase}#{$nextClassName}" />
+						<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasNext')}" />
+						<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($nextClassName)}" />
 						<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 						</owl:qualifiedCardinality>
 					</owl:Restriction>
@@ -767,8 +762,8 @@
 			<xsl:if test="$isNextItemFixed = false()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{$ontologyBase}#hasNext" />
-						<owl:onClass rdf:resource="{$ontologyBase}#{$nextClassName}" />
+						<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasNext')}" />
+						<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($nextClassName)}" />
 						<owl:maxQualifiedCardinality
 							rdf:datatype="&amp;xsd;nonNegativeInteger">1</owl:maxQualifiedCardinality>
 					</owl:Restriction>

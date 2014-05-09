@@ -21,7 +21,7 @@ public class TestXSD2OWLConverter {
 
 		Source xslSource = new StreamSource(
 				new File(
-						"/Users/RYU/git/IfcTranslateProgram/ifc/xsd2owl.xsl"));
+						"/Users/RYU/git/IfcTranslateProgram/ifc/ifcOWL.owl"));
 		System.out.println("read xsl end");
 
 		System.out.println("read xsd start");
