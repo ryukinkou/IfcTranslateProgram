@@ -214,6 +214,7 @@
 				<!-- 匿名simpleType -->
 				<xsl:when test="fcn:isComplexType(./*)">
 					<!-- TODO -->
+					<xsl:message>complexType : <xsl:value-of select="@name" /> | <xsl:value-of select="./xsd:complexType/xsd:sequence/xsd:element/@ref" /></xsl:message>
 				</xsl:when>
 
 				<!-- 匿名simpleType -->
@@ -557,7 +558,7 @@
 
 				<!-- 一个包装类，为了不改变名称 -->
 				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
-					<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+					<owl:equivalentClass rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<xsl:for-each select="1 to $minLength">
@@ -593,7 +594,7 @@
 
 				<!-- 包装列表的首个元素 -->
 				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
-					<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+					<owl:equivalentClass rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<!-- 区间：1 <= i <= minLength -->
