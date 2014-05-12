@@ -56,7 +56,7 @@
 		</xsl:choose>
 	</xsl:function>
 
-	<!-- 使用元素的name属性进行 -->
+	<!-- 废弃，使用元素的name属性进行 -->
 	<xsl:function name="fcn:getLocalAbsoluteURIByName" as="xsd:string">
 		<xsl:param name="name" as="xsd:string" />
 		<xsl:sequence
@@ -145,7 +145,8 @@
 			)" />
 	</xsl:function>
 
-	<!-- 下列对象将会转换为DatatypeProperty： 1，对象的类型属于XML Schema范畴 2，匿名SimpleType 3，对象的类型是xsd包装类 -->
+	<!-- 废弃，下列对象将会转换为DatatypeProperty： 1，对象的类型属于XML Schema范畴 2，匿名SimpleType 
+		3，对象的类型是xsd包装类 -->
 	<xsl:function name="fcn:isConvertToDatatypeProperty" as="xsd:boolean">
 		<xsl:param name="object" />
 		<xsl:param name="localSimpleTypes" />
@@ -170,7 +171,7 @@
 			) " />
 	</xsl:function>
 
-	<!-- 下列对象将会转换为ObjectProperty： 1，匿名ComplexType 2，对象的类型属于本地的ComplexType范畴 -->
+	<!-- 废弃，下列对象将会转换为ObjectProperty： 1，匿名ComplexType 2，对象的类型属于本地的ComplexType范畴 -->
 	<xsl:function name="fcn:isConvertToObjectProperty" as="xsd:boolean">
 		<xsl:param name="object" />
 		<xsl:param name="localComplexTypes" />
@@ -194,7 +195,7 @@
 		" />
 	</xsl:function>
 
-	<!-- element为SimpleType的时候，进行数据类型进行转换，element为ComplexType的时候，其数据类型为RdfURI -->
+	<!-- 废弃，element为SimpleType的时候，进行数据类型进行转换，element为ComplexType的时候，其数据类型为RdfURI -->
 	<xsl:function name="fcn:getDatatypeDefinition" as="xsd:string">
 		<xsl:param name="element" />
 		<xsl:param name="localSimpleTypes" />
@@ -253,36 +254,42 @@
 		</xsl:choose>
 	</xsl:function>
 
+	<!-- 检查元素的名称是否存在于被忽略列表中 -->
 	<xsl:function name="fcn:isNameListIgnored" as="xsd:boolean">
 		<xsl:param name="name" />
 		<xsl:sequence
 			select="sum(for $ignoreName in $ignoreNameList return (($ignoreName = $name) cast as xsd:integer)) != 0" />
 	</xsl:function>
 
+	<!-- 检查元素的名称是否属于被忽略的模式 -->
 	<xsl:function name="fcn:isNamePatternIgnored" as="xsd:boolean">
 		<xsl:param name="name" />
 		<xsl:sequence
 			select="sum(for $ignoreNamePattern in $ignoreNamePatternList return (contains($name,$ignoreNamePattern) cast as xsd:integer)) != 0" />
 	</xsl:function>
 
+	<!-- 检查元素的名称是否属于需要被忽略 -->
 	<xsl:function name="fcn:isNameIgnored" as="xsd:boolean">
 		<xsl:param name="name" />
 		<xsl:sequence
 			select="fcn:isNameListIgnored($name) or fcn:isNamePatternIgnored($name)" />
 	</xsl:function>
 
+	<!-- 检查元素是否属于SimpleType -->
 	<xsl:function name="fcn:isSimpleType" as="xsd:boolean">
 		<xsl:param name="object" />
 		<xsl:sequence
 			select=" $object/name() = concat($localXMLSchemaPrefix,':simpleType') " />
 	</xsl:function>
 
+	<!-- 检查元素是否属于ComplexType -->
 	<xsl:function name="fcn:isComplexType" as="xsd:boolean">
 		<xsl:param name="object" />
 		<xsl:sequence
 			select=" $object/name() = concat($localXMLSchemaPrefix,':complexType') " />
 	</xsl:function>
 
+	<!-- 获得元素的绝对URI引用 -->
 	<xsl:function name="fcn:getAbsoluteURIRef" as="xsd:string">
 		<xsl:param name="name" />
 		<xsl:choose>

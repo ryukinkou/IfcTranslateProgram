@@ -70,8 +70,8 @@
 				name() = $localXMLSchemaPrefix
 			)]" />
 
-	<!-- 实体属性 -->
-	<xsl:key name="properties"
+	<!-- 属性 -->
+	<xsl:key name="propertyMap"
 		match="
 		//xsd:element[
 			@name 
@@ -83,9 +83,11 @@
 			and (ancestor::xsd:complexType or ancestor::xsd:attributeGroup)
 			and not(fcn:containsElementOrAttribute(/xsd:schema, @name))
 		]"
-		use="@name" />
+		use="concat(@name,'|',@type)" />
 
 	<xsl:template match="/xsd:schema">
+
+
 
 		<!-- DTD START -->
 		<!-- 输出 '<!DOCTYPE rdf:RDF [' -->
@@ -164,10 +166,10 @@
 		<xsl:for-each
 			select=" 
 				//xsd:element [ @name and (ancestor::xsd:complexType or ancestor::xsd:group) 
-				and generate-id()=generate-id(key('properties',@name)[1])
+				and generate-id()=generate-id(key('propertyMap',concat(@name,'|',@type))[1])
 				and fcn:isNameIgnored(@name) = false() ] |
 				//xsd:attribute [ @name and (ancestor::xsd:complexType or ancestor::xsd:attributeGroup)
-				and generate-id()=generate-id(key('properties',@name)[1])
+				and generate-id()=generate-id(key('propertyMap',concat(@name,'|',@type))[1])
 				and fcn:isNameIgnored(@name) = false() ] ">
 
 			<xsl:variable name="currentName">
@@ -186,7 +188,9 @@
 						$currentType and 
 						//xsd:simpleType[@name = substring-after($currentType,':')] and
 						count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
-					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}" />
+					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+						<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef(@type)}" />
+					</owl:DatatypeProperty>
 				</xsl:when>
 
 				<!-- simpleType(枚举型) -->
@@ -196,30 +200,74 @@
 						//xsd:simpleType[@name = substring-after($currentType,':')] and 
 						//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/@base and
 						count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) > 0">
-					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
+					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">
+						<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef(@type)}" />
+					</owl:ObjectProperty>
 				</xsl:when>
 
 				<!-- xsd类型 -->
 				<xsl:when
 					test="$currentType and fcn:isXsdURI($currentType,namespace::*) ">
-					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}" />
+					<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+						<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef(@type)}" />
+					</owl:DatatypeProperty>
 				</xsl:when>
 
 				<!-- 显式complexType -->
 				<xsl:when
 					test="$currentType and //xsd:complexType[@name = substring-after($currentType,':')]">
-					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
+					<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">
+						<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef(@type)}" />
+					</owl:ObjectProperty>
 				</xsl:when>
 
-				<!-- 匿名simpleType -->
+				<!-- 匿名complexType -->
 				<xsl:when test="fcn:isComplexType(./*)">
-					<!-- TODO -->
-					<xsl:message>complexType : <xsl:value-of select="@name" /> | <xsl:value-of select="./xsd:complexType/xsd:sequence/xsd:element/@ref" /></xsl:message>
+
+					<xsl:choose>
+
+						<!-- sequence -->
+						<xsl:when test="./xsd:complexType/xsd:sequence/xsd:element/@ref">
+							<owl:ObjectProperty
+								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">
+								<rdfs:range
+									rdf:resource="{fcn:getAbsoluteURIRef(./xsd:complexType/xsd:sequence/xsd:element/@ref)}" />
+							</owl:ObjectProperty>
+						</xsl:when>
+
+						<!-- group -->
+						<xsl:when test="./xsd:complexType/xsd:group/@ref">
+							<owl:ObjectProperty
+								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">
+								<rdfs:range
+									rdf:resource="{fcn:getAbsoluteURIRef(./xsd:complexType/xsd:group/@ref)}" />
+							</owl:ObjectProperty>
+						</xsl:when>
+
+						<xsl:otherwise>
+							<!-- nothing but ignored things -->
+						</xsl:otherwise>
+
+					</xsl:choose>
+
 				</xsl:when>
 
 				<!-- 匿名simpleType -->
 				<xsl:when test="fcn:isSimpleType(./*)">
-					<!-- TODO -->
+					<xsl:choose>
+
+						<xsl:when
+							test="./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType">
+							<owl:ObjectProperty
+								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
+						</xsl:when>
+
+						<xsl:otherwise>
+							<!-- nothing -->
+						</xsl:otherwise>
+
+					</xsl:choose>
+
 				</xsl:when>
 
 				<xsl:otherwise>
@@ -235,30 +283,47 @@
 	<!-- complexType匹配模板 -->
 	<xsl:template match="xsd:complexType">
 
-		<!-- 匹配显式的complexType定义 -->
-		<xsl:if test="@name and fcn:isNameIgnored(@name) = false()">
-			<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
-				<xsl:call-template name="explicitComplexTypePropertyTranslationTemplate">
-					<xsl:with-param name="complexType" select="." />
-				</xsl:call-template>
-			</owl:Class>
-		</xsl:if>
+		<xsl:choose>
 
-		<!-- 匹配隐式的complexType定义，他们通常都被包围在一个element里面 -->
-		<xsl:if test="not(@name)">
-			<xsl:if test="../@name and fcn:isNameIgnored(../@name) = false()">
-				<owl:Class rdf:about="{fcn:getAbsoluteURIRef(../@name)}">
-					<!-- TODO -->
+			<!-- 匹配显式的complexType定义 -->
+			<xsl:when test="@name and fcn:isNameIgnored(@name) = false()">
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+					<xsl:call-template name="explicitComplexTypePropertyTranslationTemplate">
+						<xsl:with-param name="complexType" select="." />
+					</xsl:call-template>
 				</owl:Class>
-			</xsl:if>
-		</xsl:if>
+			</xsl:when>
+
+			<!-- 匹配隐式的complexType定义，他们通常都被包围在一个element里面 -->
+			<xsl:when test="not(@name)">
+				<!-- TODO CHECK -->
+				<xsl:choose>
+					<xsl:when test="../@name and fcn:isNameIgnored(../@name) = false()">
+						<owl:Class rdf:about="{fcn:getAbsoluteURIRef(../@name)}">
+						</owl:Class>
+					</xsl:when>
+
+					<xsl:otherwise>
+						<!-- nothing but ignored things -->
+					</xsl:otherwise>
+
+				</xsl:choose>
+
+			</xsl:when>
+
+			<xsl:otherwise>
+				<!-- nothing but ignored things -->
+			</xsl:otherwise>
+
+		</xsl:choose>
+
 	</xsl:template>
 
 	<!-- 属性组匹配模板 -->
 	<xsl:template
 		match="xsd:attributeGroup[@name and fcn:isNameIgnored(@name) = false()]">
+		<!-- nothing but ignored things -->
 		<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
-			<!-- TODO -->
 		</owl:Class>
 	</xsl:template>
 
@@ -277,6 +342,42 @@
 						$complexType/xsd:complexContent/xsd:extension/* |
 						$complexType/xsd:complexContent/xsd:restriction/*" />
 			</xsl:call-template>
+		</xsl:if>
+	</xsl:template>
+
+	<xsl:template name="cardinalityTemplate">
+		<xsl:param name="type" />
+		<xsl:param name="use" />
+		<xsl:param name="isReferenceByDatatypeProperty" required="no"
+			select="true()" />
+
+		<xsl:if test="$use='required'">
+
+			<xsl:choose>
+				<xsl:when test="$isReferenceByDatatypeProperty = true()">
+					<owl:onDataRange rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
+				</xsl:when>
+				<xsl:otherwise>
+					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
+				</xsl:otherwise>
+			</xsl:choose>
+
+			<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
+			</owl:qualifiedCardinality>
+		</xsl:if>
+
+		<xsl:if test="$use='optional'">
+			<xsl:choose>
+				<xsl:when test="$isReferenceByDatatypeProperty = true()">
+					<owl:onDataRange rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
+				</xsl:when>
+				<xsl:otherwise>
+					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
+				</xsl:otherwise>
+			</xsl:choose>
+			<owl:maxQualifiedCardinality
+				rdf:datatype="&amp;xsd;nonNegativeInteger">1
+			</owl:maxQualifiedCardinality>
 		</xsl:if>
 	</xsl:template>
 
@@ -313,8 +414,12 @@
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-												<!-- TODO 基数定义 -->
+
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="use" select="@use" />
+													<xsl:with-param name="type" select="$currentType" />
+												</xsl:call-template>
+
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -326,8 +431,12 @@
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-												<!-- TODO 基数定义 -->
+
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="$currentType" />
+													<xsl:with-param name="use" select="@use" />
+												</xsl:call-template>
+
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -341,8 +450,14 @@
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-												<!-- TODO 基数定义 -->
+
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="$currentType" />
+													<xsl:with-param name="use" select="@use" />
+													<xsl:with-param name="isReferenceByDatatypeProperty"
+														select="false()" />
+												</xsl:call-template>
+
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -350,14 +465,20 @@
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
-										<rdfs:subClassOf>
+										<!-- NEED TO FIX. -->
+										<!-- <rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-												<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-												<!-- TODO 基数定义 -->
+
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="$currentType" />
+													<xsl:with-param name="use" select="@use" />
+													<xsl:with-param name="isReferenceByDatatypeProperty"
+														select="false()" />
+												</xsl:call-template>
 											</owl:Restriction>
-										</rdfs:subClassOf>
+										</rdfs:subClassOf> -->
 									</xsl:when>
 
 									<xsl:otherwise>
@@ -376,8 +497,12 @@
 									<xsl:when test="fcn:isXsdURI($currentType,namespace::*)">
 										<owl:Restriction>
 											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-											<!-- TODO 基数定义 -->
+
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="use" select="@use" />
+												<xsl:with-param name="type" select="$currentType" />
+											</xsl:call-template>
+
 										</owl:Restriction>
 									</xsl:when>
 
@@ -387,8 +512,12 @@
 										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
 										<owl:Restriction>
 											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-											<!-- TODO 基数定义 -->
+
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="$currentType" />
+												<xsl:with-param name="use" select="@use" />
+											</xsl:call-template>
+
 										</owl:Restriction>
 									</xsl:when>
 
@@ -400,20 +529,33 @@
 										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-											<!-- TODO 基数定义 -->
+
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="$currentType" />
+												<xsl:with-param name="use" select="@use" />
+												<xsl:with-param name="isReferenceByDatatypeProperty"
+													select="false()" />
+											</xsl:call-template>
+
 										</owl:Restriction>
 									</xsl:when>
 
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
-										<owl:Restriction>
+										<!-- NEED TO FIX -->
+										<!-- <owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-											<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($currentType)}" />
-											<!-- TODO 基数定义 -->
-										</owl:Restriction>
+
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="$currentType" />
+												<xsl:with-param name="use" select="@use" />
+												<xsl:with-param name="isReferenceByDatatypeProperty"
+													select="false()" />
+											</xsl:call-template>
+
+										</owl:Restriction> -->
 									</xsl:when>
 
 									<xsl:otherwise>
@@ -558,7 +700,8 @@
 
 				<!-- 一个包装类，为了不改变名称 -->
 				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
-					<owl:equivalentClass rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+					<owl:equivalentClass
+						rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<xsl:for-each select="1 to $minLength">
@@ -594,7 +737,8 @@
 
 				<!-- 包装列表的首个元素 -->
 				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
-					<owl:equivalentClass rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+					<owl:equivalentClass
+						rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<!-- 区间：1 <= i <= minLength -->
@@ -708,11 +852,11 @@
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
 							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasContent')}" />
-							<owl:allValuesFrom rdf:resource="&amp;owl;Thing"/>
+							<owl:allValuesFrom rdf:resource="&amp;owl;Thing" />
 						</owl:Restriction>
 						<owl:Restriction>
 							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
-							<owl:allValuesFrom rdf:resource="&amp;xsd;anySimpleType"/>
+							<owl:allValuesFrom rdf:resource="&amp;xsd;anySimpleType" />
 						</owl:Restriction>
 					</owl:intersectionOf>
 				</owl:Class>

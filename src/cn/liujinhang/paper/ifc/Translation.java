@@ -20,7 +20,7 @@ public class Translation {
 		System.out.println("xsl loading start");
 
 		Source xslSource = new StreamSource(new File(
-				System.getProperty("user.dir") + "\\ifc\\xsd2owl.xsl"));
+				System.getProperty("user.dir") + "/ifc/xsd2owl.xsl"));
 		System.out.println("xsl loading end");
 
 		System.out.println("xsd loading start");
@@ -51,7 +51,7 @@ public class Translation {
 		result = result.replaceAll("&amp;", "&");
 
 		File file = new File(System.getProperty("user.dir")
-				+ "\\ifc\\ifcOWL.owl");
+				+ "/ifc/ifcOWL.owl");
 
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
 		bufferedWriter.write(result);
