@@ -347,38 +347,35 @@
 
 	<xsl:template name="cardinalityTemplate">
 		<xsl:param name="type" />
-		<xsl:param name="use" />
-		<xsl:param name="isReferenceByDatatypeProperty" required="no"
-			select="true()" />
+		<xsl:param name="isDatatypeProperty" />
+		<xsl:param name="minOccurs" />
+		<xsl:param name="maxOccurs" />
 
-		<xsl:if test="$use='required'">
-
-			<xsl:choose>
-				<xsl:when test="$isReferenceByDatatypeProperty = true()">
+		<xsl:choose>
+			<xsl:when test="$minOccurs = 0 and $maxOccurs = 'unbounded'">
+				<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:if test="$isDatatypeProperty = true()">
 					<owl:onDataRange rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
-				</xsl:when>
-				<xsl:otherwise>
+				</xsl:if>
+				<xsl:if test="$isDatatypeProperty = false()">
 					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
-				</xsl:otherwise>
-			</xsl:choose>
-
-			<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
-			</owl:qualifiedCardinality>
-		</xsl:if>
-
-		<xsl:if test="$use='optional'">
-			<xsl:choose>
-				<xsl:when test="$isReferenceByDatatypeProperty = true()">
-					<owl:onDataRange rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
-				</xsl:when>
-				<xsl:otherwise>
-					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($type)}" />
-				</xsl:otherwise>
-			</xsl:choose>
-			<owl:maxQualifiedCardinality
-				rdf:datatype="&amp;xsd;nonNegativeInteger">1
-			</owl:maxQualifiedCardinality>
-		</xsl:if>
+				</xsl:if>
+				<xsl:if test="not($minOccurs = 0)">
+					<owl:minQualifiedCardinality
+						rdf:datatype="&amp;xsd;nonNegativeInteger">
+						<xsl:value-of select="$minOccurs" />
+					</owl:minQualifiedCardinality>
+				</xsl:if>
+				<xsl:if test="not($maxOccurs = 'unbounded')">
+					<owl:maxQualifiedCardinality
+						rdf:datatype="&amp;xsd;nonNegativeInteger">
+						<xsl:value-of select="$maxOccurs" />
+					</owl:maxQualifiedCardinality>
+				</xsl:if>
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:template>
 
 	<!-- 属性转换模板 -->
@@ -395,6 +392,38 @@
 
 					<xsl:variable name="currentType">
 						<xsl:value-of select="@type" />
+					</xsl:variable>
+
+					<xsl:variable name="minOccurs">
+						<xsl:choose>
+							<xsl:when test="@minOccurs">
+								<xsl:value-of select="@minOccurs" />
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:choose>
+									<xsl:when test="@use='required'">
+										<xsl:value-of select="1" />
+									</xsl:when>
+									<xsl:when test="@use='optional' or nillable='true'">
+										<xsl:value-of select="0" />
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="0" />
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
+
+					<xsl:variable name="maxOccurs">
+						<xsl:choose>
+							<xsl:when test="@maxOccurs">
+								<xsl:value-of select="@maxOccurs" />
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="'unbounded'" />
+							</xsl:otherwise>
+						</xsl:choose>
 					</xsl:variable>
 
 					<xsl:choose>
@@ -414,12 +443,13 @@
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="use" select="@use" />
-													<xsl:with-param name="type" select="$currentType" />
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 												</xsl:call-template>
-
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -427,16 +457,17 @@
 									<!-- 指向简单类型(非枚举类型) -->
 									<xsl:when
 										test="//xsd:simpleType[@name = substring-after($currentType,':')] and
-										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
+											count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="$currentType" />
-													<xsl:with-param name="use" select="@use" />
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 												</xsl:call-template>
-
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -450,14 +481,13 @@
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="$currentType" />
-													<xsl:with-param name="use" select="@use" />
-													<xsl:with-param name="isReferenceByDatatypeProperty"
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 												</xsl:call-template>
-
 											</owl:Restriction>
 										</rdfs:subClassOf>
 									</xsl:when>
@@ -465,59 +495,93 @@
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
-										<!-- NEED TO FIX. -->
-										<!-- <rdfs:subClassOf>
+										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="$currentType" />
-													<xsl:with-param name="use" select="@use" />
-													<xsl:with-param name="isReferenceByDatatypeProperty"
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 												</xsl:call-template>
 											</owl:Restriction>
-										</rdfs:subClassOf> -->
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 匿名ComplexType -->
+									<xsl:when test="./xsd:complexType">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 匿名SimpleType，类型为list -->
+									<xsl:when
+										test="./xsd:simpleType and ./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
 									</xsl:when>
 
 									<xsl:otherwise>
-										<!-- TODO 隐式指向定义 -->
+										<!-- nothing -->
 									</xsl:otherwise>
 
 								</xsl:choose>
-
 							</xsl:if>
 
 							<xsl:if test="$isArrayMode = true()">
-
 								<xsl:choose>
 
 									<!-- 指向xsd类型 -->
 									<xsl:when test="fcn:isXsdURI($currentType,namespace::*)">
 										<owl:Restriction>
 											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-
 											<xsl:call-template name="cardinalityTemplate">
-												<xsl:with-param name="use" select="@use" />
-												<xsl:with-param name="type" select="$currentType" />
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="true()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 											</xsl:call-template>
-
 										</owl:Restriction>
 									</xsl:when>
 
 									<!-- 指向简单类型(非枚举类型) -->
 									<xsl:when
 										test="//xsd:simpleType[@name = substring-after($currentType,':')] and
-										  count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
+											count(//xsd:simpleType[@name = substring-after($currentType,':')]/xsd:restriction/xsd:enumeration) = 0">
 										<owl:Restriction>
 											<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
-
 											<xsl:call-template name="cardinalityTemplate">
-												<xsl:with-param name="type" select="$currentType" />
-												<xsl:with-param name="use" select="@use" />
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="true()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 											</xsl:call-template>
-
 										</owl:Restriction>
 									</xsl:when>
 
@@ -529,41 +593,68 @@
 										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-
 											<xsl:call-template name="cardinalityTemplate">
-												<xsl:with-param name="type" select="$currentType" />
-												<xsl:with-param name="use" select="@use" />
-												<xsl:with-param name="isReferenceByDatatypeProperty"
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
 													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 											</xsl:call-template>
-
 										</owl:Restriction>
 									</xsl:when>
 
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
-										<!-- NEED TO FIX -->
-										<!-- <owl:Restriction>
+										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-
 											<xsl:call-template name="cardinalityTemplate">
-												<xsl:with-param name="type" select="$currentType" />
-												<xsl:with-param name="use" select="@use" />
-												<xsl:with-param name="isReferenceByDatatypeProperty"
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
 													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
 											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
 
-										</owl:Restriction> -->
+									<!-- 匿名ComplexType -->
+									<xsl:when test="./xsd:complexType">
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+									</xsl:when>
+
+									<!-- 匿名SimpleType，类型为list -->
+									<xsl:when
+										test="./xsd:simpleType and ./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType">
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
 									</xsl:when>
 
 									<xsl:otherwise>
-										<!-- TODO 隐式指向定义 -->
+										<!-- nothing -->
 									</xsl:otherwise>
 
 								</xsl:choose>
-
 							</xsl:if>
 
 						</xsl:when>
@@ -576,7 +667,6 @@
 										<xsl:with-param name="properties" select="child::*" />
 									</xsl:call-template>
 								</xsl:when>
-
 								<xsl:when test="count(child::*) > 1">
 									<rdfs:subClassOf>
 										<owl:Class>
@@ -619,9 +709,16 @@
 							</xsl:choose>
 						</xsl:when>
 
+						<xsl:otherwise>
+						</xsl:otherwise>
+
 					</xsl:choose>
 				</xsl:for-each>
 			</xsl:when>
+
+			<xsl:otherwise>
+			</xsl:otherwise>
+
 		</xsl:choose>
 	</xsl:template>
 
@@ -682,7 +779,7 @@
 			</xsl:when>
 
 			<xsl:otherwise>
-				<!-- TODO need check -->
+				<!-- TODO 匿名simpleType -->
 			</xsl:otherwise>
 		</xsl:choose>
 
