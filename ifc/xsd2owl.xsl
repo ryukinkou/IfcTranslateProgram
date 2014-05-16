@@ -511,13 +511,13 @@
 									</xsl:when>
 
 									<!-- 匿名ComplexType -->
-									<xsl:when test="./xsd:complexType">
+									<xsl:when test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="type" select="./xsd:complexType/xsd:group/@ref" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -535,7 +535,7 @@
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="type" select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -606,6 +606,7 @@
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
+										
 										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
@@ -620,12 +621,15 @@
 									</xsl:when>
 
 									<!-- 匿名ComplexType -->
-									<xsl:when test="./xsd:complexType">
+									<xsl:when test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
+									
+										
+									
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="type" select="./xsd:complexType/xsd:group/@ref" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -641,7 +645,7 @@
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="type" select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -779,7 +783,7 @@
 			</xsl:when>
 
 			<xsl:otherwise>
-				<!-- TODO 匿名simpleType -->
+				<xsl:message><xsl:value-of select="@name" /> | <xsl:value-of select="../@name" /></xsl:message>
 			</xsl:otherwise>
 		</xsl:choose>
 
