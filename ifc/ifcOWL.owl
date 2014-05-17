@@ -9,16 +9,11 @@
 			'http://www.w3.org/1999/xlink#' >
 	<!ENTITY owl
 			'http://www.w3.org/2002/07/owl#' >
-             <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
-    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
 	<!ENTITY
 			ifc '#' >
 ]>
-<rdf:RDF 
-         xmlns="http://liujinhang.cn/paper/ifc/ifcOWL.owl#"
-     xml:base="http://liujinhang.cn/paper/ifc/ifcOWL.owl"
-   xmlns:fcn="http://www.liujinhang.cn/paper/ifc/xsd2owl-functions.xsl"
-         xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+<rdf:RDF xmlns:fcn="http://www.liujinhang.cn/paper/ifc/xsd2owl-functions.xsl"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
          xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
          xmlns:xlink="http://www.w3.org/1999/xlink#"
@@ -28,7 +23,63 @@
       <rdfs:comment>IFC</rdfs:comment>
    </owl:Ontology>
    <owl:ObjectProperty rdf:ID="any"/>
-      <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcAbsorbedDoseMeasure">
+   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasNext">
+      <rdfs:subPropertyOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy"/>
+   </owl:ObjectProperty>
+   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy">
+      <rdf:type rdf:resource="&owl;TransitiveProperty"/>
+      <rdfs:range rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
+      <rdfs:domain rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
+   </owl:ObjectProperty>
+   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
+   <owl:DatatypeProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
+   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#EmptyList">
+      <rdfs:subClassOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
+      <rdfs:subClassOf>
+         <owl:Class>
+            <owl:intersectionOf rdf:parseType="Collection">
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
+                  <owl:maxCardinality rdf:datatype="&xsd;nonNegativeInteger">0
+							</owl:maxCardinality>
+               </owl:Restriction>
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
+                  <owl:maxQualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
+                  <owl:onDataRange rdf:resource="&xsd;anySimpleType"/>
+               </owl:Restriction>
+            </owl:intersectionOf>
+         </owl:Class>
+      </rdfs:subClassOf>
+   </owl:Class>
+   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#LoopList">
+      <rdfs:subClassOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
+      <rdfs:subClassOf>
+         <owl:Class>
+            <owl:intersectionOf rdf:parseType="Collection">
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
+                  <owl:allValuesFrom rdf:resource="&owl;Thing"/>
+               </owl:Restriction>
+               <owl:Restriction>
+                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
+                  <owl:allValuesFrom rdf:resource="&xsd;anySimpleType"/>
+               </owl:Restriction>
+            </owl:intersectionOf>
+         </owl:Class>
+      </rdfs:subClassOf>
+   </owl:Class>
+   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList">
+      <rdfs:subClassOf>
+         <owl:Restriction>
+            <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy"/>
+            <owl:onClass rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
+            <owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
+					</owl:qualifiedCardinality>
+         </owl:Restriction>
+      </rdfs:subClassOf>
+   </owl:Class>
+   <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcAbsorbedDoseMeasure">
       <owl:equivalentClass rdf:resource="&xsd;double"/>
    </rdfs:Datatype>
    <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcAccelerationMeasure">
@@ -277,7 +328,6 @@
    <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcPressureMeasure">
       <owl:equivalentClass rdf:resource="&xsd;double"/>
    </rdfs:Datatype>
-   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcPropertySetDefinitionSet"/>
    <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcRadioActivityMeasure">
       <owl:equivalentClass rdf:resource="&xsd;double"/>
    </rdfs:Datatype>
@@ -398,62 +448,6 @@
    <rdfs:Datatype rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcWarpingMomentMeasure">
       <owl:equivalentClass rdf:resource="&xsd;double"/>
    </rdfs:Datatype>
-   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasNext">
-      <rdfs:subPropertyOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy"/>
-   </owl:ObjectProperty>
-   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy">
-      <rdf:type rdf:resource="&owl;TransitiveProperty"/>
-      <rdfs:range rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
-      <rdfs:domain rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
-   </owl:ObjectProperty>
-   <owl:ObjectProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
-   <owl:DatatypeProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
-   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#EmptyList">
-      <rdfs:subClassOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
-      <rdfs:subClassOf>
-         <owl:Class>
-            <owl:intersectionOf rdf:parseType="Collection">
-               <owl:Restriction>
-                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
-                  <owl:maxCardinality rdf:datatype="&xsd;nonNegativeInteger">0
-							</owl:maxCardinality>
-               </owl:Restriction>
-               <owl:Restriction>
-                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
-                  <owl:maxQualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
-                  <owl:onDataRange rdf:resource="&xsd;anySimpleType"/>
-               </owl:Restriction>
-            </owl:intersectionOf>
-         </owl:Class>
-      </rdfs:subClassOf>
-   </owl:Class>
-   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#LoopList">
-      <rdfs:subClassOf rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
-      <rdfs:subClassOf>
-         <owl:Class>
-            <owl:intersectionOf rdf:parseType="Collection">
-               <owl:Restriction>
-                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasContent"/>
-                  <owl:allValuesFrom rdf:resource="&owl;Thing"/>
-               </owl:Restriction>
-               <owl:Restriction>
-                  <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#hasValue"/>
-                  <owl:allValuesFrom rdf:resource="&xsd;anySimpleType"/>
-               </owl:Restriction>
-            </owl:intersectionOf>
-         </owl:Class>
-      </rdfs:subClassOf>
-   </owl:Class>
-   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList">
-      <rdfs:subClassOf>
-         <owl:Restriction>
-            <owl:onProperty rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#isFollowedBy"/>
-            <owl:onClass rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcList"/>
-            <owl:qualifiedCardinality rdf:datatype="&xsd;nonNegativeInteger">1
-					</owl:qualifiedCardinality>
-         </owl:Restriction>
-      </rdfs:subClassOf>
-   </owl:Class>
    <owl:DatatypeProperty rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#name">
       <rdfs:range rdf:resource="&xsd;string"/>
    </owl:DatatypeProperty>
@@ -19387,7 +19381,6 @@
    <owl:NamedIndividual rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#notdefined">
       <rdf:type rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcWorkScheduleTypeEnum"/>
    </owl:NamedIndividual>
-
    <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcComplexNumber"/>
    <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#List-IfcComplexNumber">
       <owl:equivalentClass rdf:resource="http://liujinhang.cn/paper/ifc/ifcOWL.owl#List-IfcComplexNumber1"/>
@@ -19509,7 +19502,7 @@
          </owl:Restriction>
       </rdfs:subClassOf>
    </owl:Class>
-   
+   <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#IfcPropertySetDefinitionSet"/>
    <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#Entity"/>
    <owl:Class rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#aggregateType"/>
    <owl:NamedIndividual rdf:about="http://liujinhang.cn/paper/ifc/ifcOWL.owl#array">

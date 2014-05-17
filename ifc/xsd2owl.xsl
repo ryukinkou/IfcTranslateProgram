@@ -87,8 +87,6 @@
 
 	<xsl:template match="/xsd:schema">
 
-
-
 		<!-- DTD START -->
 		<!-- 输出 '<!DOCTYPE rdf:RDF [' -->
 		<xsl:text disable-output-escaping="yes">&#10;&lt;!DOCTYPE rdf:RDF
@@ -150,6 +148,9 @@
 			<!-- 列表基类 -->
 			<xsl:call-template name="IfcListSuperClassTemplate" />
 
+			<!-- 列表基类 -->
+			<xsl:call-template name="simpleTypeTranslationTemplate" />
+
 			<!-- datatypeProperty与ObjectProperty -->
 			<xsl:call-template
 				name="datatypePropertyOrObjectPropertyTranslationTemplate" />
@@ -159,6 +160,26 @@
 
 		</rdf:RDF>
 
+	</xsl:template>
+
+	<xsl:template name="simpleTypeTranslationTemplate">
+
+		<xsl:for-each select="//xsd:simpleType">
+
+			<xsl:choose>
+				<!-- 转换显式定义的语法糖级simpleType为datatype -->
+				<xsl:when
+					test="
+					@name and fcn:isNameIgnored(@name) = false() and
+					./xsd:restriction/@base and
+					count(./xsd:restriction/xsd:enumeration) = 0 ">
+					<rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+						<owl:equivalentClass
+							rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" />
+					</rdfs:Datatype>
+				</xsl:when>
+			</xsl:choose>
+		</xsl:for-each>
 	</xsl:template>
 
 	<xsl:template name="datatypePropertyOrObjectPropertyTranslationTemplate">
@@ -277,6 +298,71 @@
 			</xsl:choose>
 
 		</xsl:for-each>
+
+	</xsl:template>
+
+	<!-- 转换simpleType -->
+	<xsl:template match="xsd:simpleType">
+
+		<xsl:choose>
+			<!-- 转换显式定义的语法糖级simpleType为datatype -->
+			<!-- 为了调整输出顺序，将datatype的定义提到文档输出的头部 -->
+			<!-- <xsl:when
+				test="
+					@name and fcn:isNameIgnored(@name) = false() and
+					./xsd:restriction/@base and
+					count(./xsd:restriction/xsd:enumeration) = 0 ">
+				<rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+					<owl:equivalentClass
+						rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" />
+				</rdfs:Datatype>
+			</xsl:when>
+			 -->
+
+			<!-- 转换显式定义的枚举型simpleType，将simpleType本身转换为class，其枚举值转换为它的个体 -->
+			<xsl:when
+				test="
+					@name and fcn:isNameIgnored(@name) = false() and
+					./xsd:restriction/@base and
+					count(./xsd:restriction/xsd:enumeration) > 0 ">
+				<xsl:variable name="className" select="@name" />
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($className)}" />
+				<xsl:for-each select="./xsd:restriction/child::*">
+					<owl:NamedIndividual rdf:about="{fcn:getAbsoluteURIRef(./@value)}">
+						<rdf:type rdf:resource="{fcn:getAbsoluteURIRef($className)}" />
+					</owl:NamedIndividual>
+				</xsl:for-each>
+			</xsl:when>
+
+			<!-- 转换显式定义的列表类simpleType -->
+			<xsl:when
+				test="@name and fcn:isNameIgnored(@name) = false() and
+			 		 ./xsd:restriction/xsd:simpleType/xsd:list">
+
+				<xsl:variable name="classNamePrefix" select="@name" />
+
+				<xsl:variable name="minLength"
+					select="./xsd:restriction/xsd:minLength/@value" />
+
+				<xsl:variable name="maxLength"
+					select="./xsd:restriction/xsd:maxLength/@value" />
+
+				<xsl:variable name="itemType"
+					select="fcn:getXsdURI(./xsd:restriction/xsd:simpleType/xsd:list/@itemType,namespace::*)" />
+
+				<xsl:call-template name="IfcListTemplate">
+					<xsl:with-param name="classNamePrefix" select="$classNamePrefix" />
+					<xsl:with-param name="minLength" select="$minLength" />
+					<xsl:with-param name="maxLength" select="$maxLength" />
+					<xsl:with-param name="itemType" select="$itemType" />
+				</xsl:call-template>
+
+			</xsl:when>
+
+			<xsl:otherwise>
+				<!-- noting but ignored things -->
+			</xsl:otherwise>
+		</xsl:choose>
 
 	</xsl:template>
 
@@ -511,13 +597,15 @@
 									</xsl:when>
 
 									<!-- 匿名ComplexType -->
-									<xsl:when test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
+									<xsl:when
+										test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="./xsd:complexType/xsd:group/@ref" />
+													<xsl:with-param name="type"
+														select="./xsd:complexType/xsd:group/@ref" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -535,7 +623,8 @@
 												<owl:onProperty
 													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
 												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
+													<xsl:with-param name="type"
+														select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
 													<xsl:with-param name="isDatatypeProperty"
 														select="false()" />
 													<xsl:with-param name="minOccurs" select="$minOccurs" />
@@ -606,7 +695,7 @@
 									<!-- 指向复杂类型 -->
 									<xsl:when
 										test="//xsd:complexType[@name = substring-after($currentType,':')]">
-										
+
 										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
@@ -621,37 +710,40 @@
 									</xsl:when>
 
 									<!-- 匿名ComplexType -->
-									<xsl:when test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
-									
-										
-									
-											<owl:Restriction>
-												<owl:onProperty
-													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="./xsd:complexType/xsd:group/@ref" />
-													<xsl:with-param name="isDatatypeProperty"
-														select="false()" />
-													<xsl:with-param name="minOccurs" select="$minOccurs" />
-													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
-												</xsl:call-template>
-											</owl:Restriction>
+									<xsl:when
+										test="./xsd:complexType and ./xsd:complexType/xsd:group/@ref">
+
+
+
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./xsd:complexType/xsd:group/@ref" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
 									</xsl:when>
 
 									<!-- 匿名SimpleType，类型为list -->
 									<xsl:when
 										test="./xsd:simpleType and ./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType">
-											<owl:Restriction>
-												<owl:onProperty
-													rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
-												<xsl:call-template name="cardinalityTemplate">
-													<xsl:with-param name="type" select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
-													<xsl:with-param name="isDatatypeProperty"
-														select="false()" />
-													<xsl:with-param name="minOccurs" select="$minOccurs" />
-													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
-												</xsl:call-template>
-											</owl:Restriction>
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getAbsoluteURIRef(concat('has',$currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
 									</xsl:when>
 
 									<xsl:otherwise>
@@ -724,69 +816,6 @@
 			</xsl:otherwise>
 
 		</xsl:choose>
-	</xsl:template>
-
-	<!-- 转换simpleType -->
-	<xsl:template match="xsd:simpleType">
-
-		<xsl:choose>
-			<!-- 转换显式定义的语法糖级simpleType为datatype -->
-			<xsl:when
-				test="
-					@name and fcn:isNameIgnored(@name) = false() and
-					./xsd:restriction/@base and
-					count(./xsd:restriction/xsd:enumeration) = 0 ">
-				<rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}">
-					<owl:equivalentClass
-						rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" />
-				</rdfs:Datatype>
-			</xsl:when>
-
-			<!-- 转换显式定义的枚举型simpleType，将simpleType本身转换为class，其枚举值转换为它的个体 -->
-			<xsl:when
-				test="
-					@name and fcn:isNameIgnored(@name) = false() and
-					./xsd:restriction/@base and
-					count(./xsd:restriction/xsd:enumeration) > 0 ">
-				<xsl:variable name="className" select="@name" />
-				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($className)}" />
-				<xsl:for-each select="./xsd:restriction/child::*">
-					<owl:NamedIndividual rdf:about="{fcn:getAbsoluteURIRef(./@value)}">
-						<rdf:type rdf:resource="{fcn:getAbsoluteURIRef($className)}" />
-					</owl:NamedIndividual>
-				</xsl:for-each>
-			</xsl:when>
-
-			<!-- 转换显式定义的列表类simpleType -->
-			<xsl:when
-				test="@name and fcn:isNameIgnored(@name) = false() and
-			 		 ./xsd:restriction/xsd:simpleType/xsd:list">
-
-				<xsl:variable name="classNamePrefix" select="@name" />
-
-				<xsl:variable name="minLength"
-					select="./xsd:restriction/xsd:minLength/@value" />
-
-				<xsl:variable name="maxLength"
-					select="./xsd:restriction/xsd:maxLength/@value" />
-
-				<xsl:variable name="itemType"
-					select="fcn:getXsdURI(./xsd:restriction/xsd:simpleType/xsd:list/@itemType,namespace::*)" />
-
-				<xsl:call-template name="IfcListTemplate">
-					<xsl:with-param name="classNamePrefix" select="$classNamePrefix" />
-					<xsl:with-param name="minLength" select="$minLength" />
-					<xsl:with-param name="maxLength" select="$maxLength" />
-					<xsl:with-param name="itemType" select="$itemType" />
-				</xsl:call-template>
-
-			</xsl:when>
-
-			<xsl:otherwise>
-				<xsl:message><xsl:value-of select="@name" /> | <xsl:value-of select="../@name" /></xsl:message>
-			</xsl:otherwise>
-		</xsl:choose>
-
 	</xsl:template>
 
 	<xsl:template name="IfcListTemplate">
