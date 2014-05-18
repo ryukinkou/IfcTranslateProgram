@@ -132,6 +132,57 @@
 			)" />
 	</xsl:function>
 
+	<xsl:function name="fcn:isDatatypeDefinition" as="xsd:boolean">
+		<xsl:param name="qualifiedName" as="xsd:string" />
+		<xsl:param name="localSimpleTypes" />
+		<xsl:param name="namespaces" />
+		<xsl:choose>
+			<xsl:when
+				test="
+				fcn:isXsdURI($qualifiedName,$namespaces) or
+				( 
+				$localSimpleTypes[@name=substring-after($qualifiedName,':')]/xsd:restriction/@base and
+				count($localSimpleTypes[@name=substring-after($qualifiedName,':')]/xsd:restriction/xsd:enumeration) = 0 )">
+				<xsl:sequence select="true()" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:sequence select="false()" />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:function>
+
+	<xsl:function name="fcn:isChildrenAllDatatypeDefinition">
+		<xsl:param name="children" />
+		<xsl:param name="localSimpleTypes" />
+		<xsl:param name="namespaces" />
+		<xsl:sequence
+			select="
+			sum(
+				for $child in $children return 
+					(
+						(
+							fcn:isDatatypeDefinition(replace($child/@ref,'-wrapper',''),$localSimpleTypes,$namespaces)
+						) cast as xsd:integer
+					)
+				) = count($children)" />
+	</xsl:function>
+	
+	<xsl:function name="fcn:isChildrenAllNotDatatypeDefinition">
+		<xsl:param name="children" />
+		<xsl:param name="localSimpleTypes" />
+		<xsl:param name="namespaces" />
+		<xsl:sequence
+			select="
+			sum(
+				for $child in $children return 
+					(
+						(
+							not(fcn:isDatatypeDefinition(replace($child/@ref,'-wrapper',''),$localSimpleTypes,$namespaces))
+						) cast as xsd:integer
+					)
+				) = count($children)" />
+	</xsl:function>
+
 	<!-- 检查该uriRef是否属于本地命名空间 -->
 	<xsl:function name="fcn:isLocalURI" as="xsd:boolean">
 		<xsl:param name="uriRef" as="xsd:string" />

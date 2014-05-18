@@ -138,18 +138,24 @@
 			</xsl:variable>
 			<xsl:copy-of select="$localNamespacesTemp/*/namespace::*" />
 
-			<!-- 本体的顶级信息定义，暂时没有 -->
+			<!-- 本体的顶级信息定义 -->
 			<owl:Ontology rdf:about="{$ontologyBase}">
 				<rdfs:comment>IFC</rdfs:comment>
 			</owl:Ontology>
 
 			<owl:ObjectProperty rdf:ID="any" />
 
-			<!-- 列表基类 -->
+			<!-- 列表基类生成模板 -->
 			<xsl:call-template name="IfcListSuperClassTemplate" />
 
-			<!-- 列表基类 -->
-			<xsl:call-template name="simpleTypeTranslationTemplate" />
+			<!-- 组生成模板(SELECT类型) -->
+			<xsl:call-template name="groupTranslationTemplate" />
+
+			<!-- 包装类生成模板 -->
+			<xsl:call-template name="wrapperTranslationTemplate" />
+
+			<!-- Datatype转换模板 -->
+			<xsl:call-template name="simpleTypeToDatatypeTranslationTemplate" />
 
 			<!-- datatypeProperty与ObjectProperty -->
 			<xsl:call-template
@@ -162,12 +168,11 @@
 
 	</xsl:template>
 
-	<xsl:template name="simpleTypeTranslationTemplate">
+	<xsl:template name="simpleTypeToDatatypeTranslationTemplate">
 
 		<xsl:for-each select="//xsd:simpleType">
 
 			<xsl:choose>
-				<!-- 转换显式定义的语法糖级simpleType为datatype -->
 				<xsl:when
 					test="
 					@name and fcn:isNameIgnored(@name) = false() and
@@ -259,7 +264,7 @@
 						<!-- group -->
 						<xsl:when test="./xsd:complexType/xsd:group/@ref">
 							<owl:ObjectProperty
-								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">
+								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}">				
 								<rdfs:range
 									rdf:resource="{fcn:getAbsoluteURIRef(./xsd:complexType/xsd:group/@ref)}" />
 							</owl:ObjectProperty>
@@ -278,7 +283,14 @@
 					<xsl:choose>
 
 						<xsl:when
-							test="./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType">
+							test="./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType and 
+								fcn:isDatatypeDefinition(./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType,//xsd:simpleType,namespace::*)">
+							<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef(@name)}" />
+						</xsl:when>
+
+						<xsl:when
+							test="./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType and 
+								not(fcn:isDatatypeDefinition(./xsd:simpleType/xsd:restriction/xsd:simpleType/xsd:list/@itemType,//xsd:simpleType,namespace::*))">
 							<owl:ObjectProperty
 								rdf:about="{fcn:getAbsoluteURIRef(concat('has',@name))}" />
 						</xsl:when>
@@ -307,17 +319,11 @@
 		<xsl:choose>
 			<!-- 转换显式定义的语法糖级simpleType为datatype -->
 			<!-- 为了调整输出顺序，将datatype的定义提到文档输出的头部 -->
-			<!-- <xsl:when
-				test="
-					@name and fcn:isNameIgnored(@name) = false() and
-					./xsd:restriction/@base and
-					count(./xsd:restriction/xsd:enumeration) = 0 ">
-				<rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}">
-					<owl:equivalentClass
-						rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" />
-				</rdfs:Datatype>
-			</xsl:when>
-			 -->
+			<!-- <xsl:when test=" @name and fcn:isNameIgnored(@name) = false() and 
+				./xsd:restriction/@base and count(./xsd:restriction/xsd:enumeration) = 0 
+				"> <rdfs:Datatype rdf:about="{fcn:getAbsoluteURIRef(@name)}"> <owl:equivalentClass 
+				rdf:resource="{fcn:getAbsoluteURIRef(./xsd:restriction/@base)}" /> </rdfs:Datatype> 
+				</xsl:when> -->
 
 			<!-- 转换显式定义的枚举型simpleType，将simpleType本身转换为class，其枚举值转换为它的个体 -->
 			<xsl:when
@@ -617,7 +623,30 @@
 
 									<!-- 匿名SimpleType，类型为list -->
 									<xsl:when
-										test="./xsd:simpleType and ./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType">
+										test="
+											./xsd:simpleType and 
+											./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType and
+											fcn:isDatatypeDefinition(./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType,//xsd:simpleType,namespace::*)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef($currentName)}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type"
+														select="./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<xsl:when
+										test="
+											./xsd:simpleType and 
+											./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType and
+											not(fcn:isDatatypeDefinition(./descendant::*[name() = concat($localXMLSchemaPrefix,':list')]/@itemType,//xsd:simpleType,namespace::*))">
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
@@ -816,6 +845,59 @@
 			</xsl:otherwise>
 
 		</xsl:choose>
+	</xsl:template>
+
+	<xsl:template name="wrapperTranslationTemplate">
+
+		<xsl:for-each select="//xsd:element[contains(@name,'-wrapper')]">
+
+			<xsl:variable name="base" select="descendant::*[@base]/@base" />
+			<xsl:choose>
+
+				<xsl:when
+					test="fcn:isDatatypeDefinition($base,//xsd:schema/xsd:simpleType,namespace::*)">
+					<owl:DatatypeProperty
+						rdf:about="{fcn:getAbsoluteURIRef(concat('has',substring-after($base,':')))}" />
+				</xsl:when>
+				<xsl:otherwise>
+					<owl:ObjectProperty
+						rdf:about="{fcn:getAbsoluteURIRef(concat('has',substring-after($base,':')))}" />
+				</xsl:otherwise>
+			</xsl:choose>
+
+			<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+				<rdfs:subClassOf>
+					<owl:Restriction>
+						<owl:onProperty
+							rdf:resource="{fcn:getAbsoluteURIRef(concat('has',substring-after($base,':')))}" />
+						<owl:allValuesFrom rdf:resource="{fcn:getAbsoluteURIRef($base)}" />
+					</owl:Restriction>
+				</rdfs:subClassOf>
+			</owl:Class>
+
+		</xsl:for-each>
+
+	</xsl:template>
+
+	<xsl:template name="groupTranslationTemplate">
+
+		<xsl:for-each select="./xsd:group">
+			<xsl:if test="./xsd:choice and count(./xsd:choice/child::*) > 0">
+
+				<owl:Class rdf:about="{fcn:getAbsoluteURIRef(@name)}">
+					<rdfs:subClassOf>
+						<owl:Class>
+							<owl:unionOf rdf:parseType="Collection">
+								<xsl:for-each select="./xsd:choice/child::*">
+									<rdf:Description rdf:about="{fcn:getAbsoluteURIRef(@ref)}" />
+								</xsl:for-each>
+							</owl:unionOf>
+						</owl:Class>
+					</rdfs:subClassOf>
+				</owl:Class>
+			</xsl:if>
+		</xsl:for-each>
+
 	</xsl:template>
 
 	<xsl:template name="IfcListTemplate">
