@@ -6,42 +6,32 @@
 	xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
 	xmlns:xlink="http://www.w3.org/1999/xlink#" xmlns:owl="http://www.w3.org/2002/07/owl#">
 
+	<!-- function文件引用 -->
 	<xsl:import href="xsd2owl-functions.xsl" />
 
 	<!-- 文档输出定义 -->
 	<xsl:output media-type="text/xml" version="1.0" encoding="UTF-8"
 		indent="yes" use-character-maps="owl" />
-
 	<xsl:strip-space elements="*" />
-
 	<xsl:character-map name="owl">
 		<xsl:output-character character="&amp;" string="&amp;" />
 	</xsl:character-map>
 
-	<!-- 全局变量定义 -->
-	<xsl:variable name="ontologyBase">
-		<xsl:value-of select="'http://liujinhang.cn/paper/ifc/ifcOWL.owl'" />
-	</xsl:variable>
+	<!-- 动词前缀 -->
+	<xsl:variable name="predicatePrefix" select="'has'" />
 
+	<!-- 目标命名空间 -->
 	<xsl:variable name="targetNamespace">
 		<xsl:value-of select="/xsd:schema/@targetNamespace" />
 	</xsl:variable>
 
+	<!-- 目标命名空间前缀 -->
 	<xsl:variable name="targetNamespacePrefix">
 		<xsl:for-each select="/xsd:schema/namespace::*">
 			<xsl:if test=". = $targetNamespace">
 				<xsl:value-of select="name()" />
 			</xsl:if>
 		</xsl:for-each>
-	</xsl:variable>
-
-	<xsl:variable name="targetDTDEntity">
-		<!-- 输出 '&' -->
-		<xsl:text disable-output-escaping="yes">&amp;</xsl:text>
-		<!-- 输出 targetPrefix -->
-		<xsl:value-of select="$targetNamespacePrefix" />
-		<!-- 输出 ';' -->
-		<xsl:text disable-output-escaping="yes">;</xsl:text>
 	</xsl:variable>
 
 	<!-- 忽略列表 -->
@@ -51,10 +41,13 @@
 	<!-- 忽略模式列表 -->
 	<xsl:variable name="ignoreNamePatternList" select="'-wrapper',nil" />
 
+	<!-- 本地定义的SimpleType -->
 	<xsl:variable name="localSimpleTypes" select="/xsd:schema/xsd:simpleType" />
 
+	<!-- 本地定义的ComplexType -->
 	<xsl:variable name="localComplexTypes" select="/xsd:schema/xsd:complexType" />
 
+	<!-- Xsd的本地前缀 -->
 	<xsl:variable name="localXsdPrefix">
 		<xsl:for-each select="/xsd:schema/namespace::*">
 			<xsl:if test=". = 'http://www.w3.org/2001/XMLSchema'">
@@ -63,8 +56,10 @@
 		</xsl:for-each>
 	</xsl:variable>
 
+	<!-- 命名空间 -->
 	<xsl:variable name="namespaces" select="/xsd:schema/namespace::*" />
 
+	<!-- 本地定义的命名空间 -->
 	<xsl:variable name="localNamespaces"
 		select="namespaces[
 			not(name() = '' or 
@@ -73,7 +68,7 @@
 				name() = 'xlink' or
 				name() = $localXsdPrefix)]" />
 
-	<!-- 属性 -->
+	<!-- name|type,node 图 -->
 	<xsl:key name="propertyMap"
 		match="
 		//xsd:element[
@@ -137,20 +132,23 @@
 			<xsl:copy-of select="$localNamespacesTemp/*/namespace::*" />
 
 			<!-- 本体的顶级信息定义 -->
-			<owl:Ontology rdf:about="{$ontologyBase}">
+			<owl:Ontology rdf:about="{$targetNamespace}">
 				<rdfs:comment>IFC</rdfs:comment>
 			</owl:Ontology>
 
 			<owl:ObjectProperty rdf:ID="any" />
 
-			<!-- <xsl:call-template name="groupTranslationTemplate" /> <xsl:call-template 
-				name="wrapperTranslationTemplate" /> -->
-
-			<!-- 列表基类 -->
+			<!-- 列表基类输出模板 -->
 			<xsl:call-template name="IfcListSuperClassTemplate" />
 
-			<!-- Datatype转换模板 -->
+			<!-- datatype的转换模板 -->
 			<xsl:call-template name="datatypeTranslationTemplate" />
+
+			<!-- group(SELECT类型)转换模板 -->
+			<xsl:call-template name="groupTranslationTemplate" />
+
+			<!-- wrapper(包装)类转换模板 -->
+			<xsl:call-template name="wrapperTranslationTemplate" />
 
 			<!-- datatypeProperty与ObjectProperty的转换模板 -->
 			<xsl:call-template
@@ -210,7 +208,8 @@
 				<xsl:when
 					test="$currentName and $currentType and fcn:isEnumClassDefinition($currentType)">
 
-					<owl:ObjectProperty rdf:about="{fcn:getFullName(concat('has',$currentName))}">
+					<owl:ObjectProperty
+						rdf:about="{fcn:getFullName(fcn:getPredicate($currentName))}">
 						<rdfs:range rdf:resource="{fcn:getFullName($currentType)}" />
 					</owl:ObjectProperty>
 
@@ -273,7 +272,7 @@
 								fcn:isClassDefinition($currentItemType))">
 
 							<owl:ObjectProperty
-								rdf:about="{fcn:getFullName(concat('has',$currentName))}" />
+								rdf:about="{fcn:getFullName(fcn:getPredicate($currentName))}" />
 
 						</xsl:when>
 						<xsl:otherwise>
@@ -339,6 +338,519 @@
 				<!-- KEEP it -->
 			</xsl:otherwise>
 		</xsl:choose>
+	</xsl:template>
+
+	<!-- complexType匹配模板 -->
+	<xsl:template match="//xsd:complexType">
+		<xsl:choose>
+			<!-- 匹配显式的complexType定义 -->
+			<xsl:when
+				test="
+				@name and not(../@name) and 
+				fcn:isNameIgnored(@name) = false()">
+				<owl:Class rdf:about="{fcn:getFullName(@name)}">
+					<xsl:call-template name="explicitComplexTypePropertyTranslationTemplate">
+						<xsl:with-param name="complexType" select="." />
+					</xsl:call-template>
+				</owl:Class>
+			</xsl:when>
+			<!-- 匹配隐式的complexType定义，他们通常都被包围在一个element里面 -->
+			<xsl:when
+				test="
+				not(@name) and ../@name and 
+				fcn:isNameIgnored(../@name) = false()">
+				<owl:Class rdf:about="{fcn:getFullName(../@name)}">
+					<!-- TODO -->
+				</owl:Class>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- KEEP it -->
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<xsl:template name="explicitComplexTypePropertyTranslationTemplate">
+		<xsl:param name="complexType" />
+		<xsl:variable name="base"
+			select="
+				$complexType/xsd:complexContent/xsd:extension/@base |
+				$complexType/xsd:complexContent/xsd:restriction/@base" />
+		<xsl:if test="$base">
+			<rdfs:subClassOf rdf:resource="{fcn:getFullName($base)}" />
+			<xsl:call-template name="propertyTranslationTemplate">
+				<xsl:with-param name="properties"
+					select="
+						$complexType/xsd:complexContent/xsd:extension/* |
+						$complexType/xsd:complexContent/xsd:restriction/*" />
+			</xsl:call-template>
+		</xsl:if>
+	</xsl:template>
+
+	<!-- 属性转换模板 -->
+	<xsl:template name="propertyTranslationTemplate">
+		<xsl:param name="properties" />
+		<xsl:param name="isArrayMode" required="no" select="false()" />
+		<xsl:choose>
+			<xsl:when test="count($properties) > 0">
+				<xsl:for-each select="$properties">
+
+					<xsl:variable name="currentName">
+						<xsl:value-of select="@name" />
+					</xsl:variable>
+
+					<xsl:variable name="currentType">
+						<xsl:value-of select="@type" />
+					</xsl:variable>
+
+					<xsl:variable name="minOccurs">
+						<xsl:choose>
+							<xsl:when test="@minOccurs">
+								<xsl:value-of select="@minOccurs" />
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:choose>
+									<xsl:when test="@use='required'">
+										<xsl:value-of select="1" />
+									</xsl:when>
+									<xsl:when test="@use='optional' or nillable='true'">
+										<xsl:value-of select="0" />
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:value-of select="0" />
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
+
+					<xsl:variable name="maxOccurs">
+						<xsl:choose>
+							<xsl:when test="@maxOccurs">
+								<xsl:value-of select="@maxOccurs" />
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="'unbounded'" />
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:variable>
+
+					<xsl:choose>
+						<!-- 解释element/attribute -->
+						<xsl:when
+							test="
+								$currentName and
+								(fcn:getQName(./name()) = 'xsd:element' or 
+								fcn:getQName(./name()) = 'xsd:attribute')">
+							<xsl:if test="$isArrayMode = false()">
+								<xsl:choose>
+									<!-- 指向xsd类型 -->
+									<xsl:when test="$currentType and fcn:isXsdURI($currentType)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 指向Datatype类型 -->
+									<xsl:when
+										test="$currentType and fcn:isDatatypeDefinition($currentType)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 指向简单类型(枚举类型) -->
+									<xsl:when
+										test="$currentType and fcn:isEnumClassDefinition($currentType)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 指向复杂类型 -->
+									<xsl:when test="fcn:isClassDefinition($currentType)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type" select="@type" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 匿名ComplexType -->
+									<xsl:when
+										test="
+											./xsd:complexType and 
+											./xsd:complexType/xsd:group/@ref">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type"
+														select="./xsd:complexType/xsd:group/@ref" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<!-- 匿名SimpleType，类型为list -->
+									<xsl:when
+										test="
+											./xsd:simpleType and 
+											./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType and
+											fcn:isDatatypeDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType)">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type"
+														select="./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="true()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<xsl:when
+										test="
+											./xsd:simpleType and 
+											./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType and
+											(fcn:isEnumClassDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType) or
+											fcn:isClassDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType))">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type"
+														select="./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs" select="$minOccurs" />
+													<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
+									<xsl:otherwise>
+										<!-- KEEP it -->
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:if>
+
+							<xsl:if test="$isArrayMode = true()">
+								<xsl:choose>
+									<!-- 指向xsd类型 -->
+									<xsl:when test="$currentType and fcn:isXsdURI($currentType)">
+										<owl:Restriction>
+											<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="true()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- 指向Datatype类型 -->
+									<xsl:when
+										test="$currentType and fcn:isDatatypeDefinition($currentType)">
+										<owl:Restriction>
+											<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="true()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- 指向简单类型(枚举类型) -->
+									<xsl:when
+										test="$currentType and fcn:isEnumClassDefinition($currentType)">
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- 指向复杂类型 -->
+									<xsl:when test="fcn:isClassDefinition($currentType)">
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type" select="@type" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- 匿名ComplexType -->
+									<xsl:when
+										test="
+											./xsd:complexType and 
+											./xsd:complexType/xsd:group/@ref">
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./xsd:complexType/xsd:group/@ref" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- 匿名SimpleType，类型为list -->
+									<xsl:when
+										test="
+											./xsd:simpleType and 
+											./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType and
+											fcn:isDatatypeDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType)">
+										<owl:Restriction>
+											<owl:onProperty rdf:resource="{fcn:getFullName($currentName)}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="true()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<xsl:when
+										test="
+											./xsd:simpleType and 
+											./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType and
+											(fcn:isEnumClassDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType) or
+											fcn:isClassDefinition(./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType))">
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./descendant::*[fcn:getQName(name()) = 'xsd:list']/@itemType" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs" select="$minOccurs" />
+												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<xsl:otherwise>
+										<!-- KEEP it -->
+									</xsl:otherwise>
+								</xsl:choose>
+							</xsl:if>
+
+						</xsl:when>
+
+						<!-- 解释sequence -->
+						<xsl:when test="fcn:getQName(./name()) = 'xsd:sequence'">
+							<xsl:choose>
+								<xsl:when test="count(child::*) = 1">
+									<xsl:call-template name="propertyTranslationTemplate">
+										<xsl:with-param name="properties" select="child::*" />
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="count(child::*) > 1">
+									<rdfs:subClassOf>
+										<owl:Class>
+											<owl:intersectionOf rdf:parseType="Collection">
+												<xsl:call-template name="propertyTranslationTemplate">
+													<xsl:with-param name="properties" select="child::*" />
+													<xsl:with-param name="isArrayMode" select="true()" />
+												</xsl:call-template>
+											</owl:intersectionOf>
+										</owl:Class>
+									</rdfs:subClassOf>
+								</xsl:when>
+								<xsl:otherwise>
+								</xsl:otherwise>
+							</xsl:choose>
+						</xsl:when>
+
+						<!-- 解释choice -->
+						<xsl:when test="fcn:getQName(./name()) = 'xsd:choice'">
+							<xsl:choose>
+								<xsl:when test="count(child::*) = 1">
+									<xsl:call-template name="propertyTranslationTemplate">
+										<xsl:with-param name="properties" select="child::*" />
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="count(child::*) > 1">
+									<rdfs:subClassOf>
+										<owl:Class>
+											<owl:unionOf rdf:parseType="Collection">
+												<xsl:call-template name="propertyTranslationTemplate">
+													<xsl:with-param name="properties" select="child::*" />
+													<xsl:with-param name="isArrayMode" select="true()" />
+												</xsl:call-template>
+											</owl:unionOf>
+										</owl:Class>
+									</rdfs:subClassOf>
+								</xsl:when>
+								<xsl:otherwise>
+									<!-- KEEP it -->
+								</xsl:otherwise>
+							</xsl:choose>
+						</xsl:when>
+						<xsl:otherwise>
+							<!-- KEEP it -->
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:for-each>
+			</xsl:when>
+			<xsl:otherwise>
+				<!-- KEEP it -->
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<xsl:template name="cardinalityTemplate">
+		<xsl:param name="type" />
+		<xsl:param name="isDatatypeProperty" />
+		<xsl:param name="minOccurs" />
+		<xsl:param name="maxOccurs" />
+		<xsl:choose>
+			<xsl:when test="$minOccurs = 0 and $maxOccurs = 'unbounded'">
+				<owl:allValuesFrom rdf:resource="{fcn:getFullName($type)}" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:if test="$isDatatypeProperty = true()">
+					<owl:onDataRange rdf:resource="{fcn:getFullName($type)}" />
+				</xsl:if>
+				<xsl:if test="$isDatatypeProperty = false()">
+					<owl:onClass rdf:resource="{fcn:getFullName($type)}" />
+				</xsl:if>
+				<xsl:if test="not($minOccurs = 0)">
+					<owl:minQualifiedCardinality
+						rdf:datatype="&amp;xsd;nonNegativeInteger">
+						<xsl:value-of select="$minOccurs" />
+					</owl:minQualifiedCardinality>
+				</xsl:if>
+				<xsl:if test="not($maxOccurs = 'unbounded')">
+					<owl:maxQualifiedCardinality
+						rdf:datatype="&amp;xsd;nonNegativeInteger">
+						<xsl:value-of select="$maxOccurs" />
+					</owl:maxQualifiedCardinality>
+				</xsl:if>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:template>
+
+	<xsl:template name="wrapperTranslationTemplate">
+		<xsl:for-each select="//xsd:element[contains(@name,'-wrapper')]">
+			<xsl:variable name="base"
+				select="descendant::*[fcn:getQName(name())='xsd:extension']/@base" />
+			<xsl:choose>
+
+				<xsl:when test="fcn:isDatatypeDefinition($base)">
+					<owl:DatatypeProperty rdf:about="{fcn:getFullName(fcn:getPredicate($base))}" />
+				</xsl:when>
+				<xsl:when
+					test="fcn:isEnumClassDefinition($base) or fcn:isClassDefinition($base)">
+					<owl:ObjectProperty rdf:about="{fcn:getFullName(fcn:getPredicate($base))}" />
+				</xsl:when>
+				<xsl:otherwise>
+					<!-- KEEP it -->
+				</xsl:otherwise>
+			</xsl:choose>
+
+			<owl:Class rdf:about="{fcn:getFullName(@name)}">
+				<rdfs:subClassOf>
+					<owl:Restriction>
+						<owl:onProperty rdf:resource="{fcn:getFullName(fcn:getPredicate($base))}" />
+						<owl:allValuesFrom rdf:resource="{fcn:getFullName($base)}" />
+					</owl:Restriction>
+				</rdfs:subClassOf>
+			</owl:Class>
+
+		</xsl:for-each>
+	</xsl:template>
+
+	<xsl:template name="groupTranslationTemplate">
+		<xsl:for-each select="./xsd:group">
+			<xsl:if test="./xsd:choice and count(./xsd:choice/child::*) > 0">
+
+				<owl:Class rdf:about="{fcn:getFullName(@name)}">
+					<rdfs:subClassOf>
+						<owl:Class>
+							<owl:unionOf rdf:parseType="Collection">
+								<xsl:for-each select="./xsd:choice/child::*">
+									<rdf:Description rdf:about="{fcn:getFullName(@ref)}" />
+								</xsl:for-each>
+							</owl:unionOf>
+						</owl:Class>
+					</rdfs:subClassOf>
+				</owl:Class>
+
+			</xsl:if>
+		</xsl:for-each>
 	</xsl:template>
 
 	<!-- 集合的一种折衷方案，可以让区间确定的集合具备一定的推理能力 -->

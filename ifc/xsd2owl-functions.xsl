@@ -10,6 +10,7 @@
 	<xsl:variable name="standardXsdNamespace" select="'http://www.w3.org/2001/XMLSchema'" />
 
 	<!-- 变量引用 -->
+	<xsl:variable name="fcnPredicatePrefix" select="$predicatePrefix" />
 	<xsl:variable name="fcnNamespaces" select="$namespaces" />
 	<xsl:variable name="fcnTargetNamespacePrefix" select="$targetNamespacePrefix" />
 	<xsl:variable name="fcnLocalXsdPrefix" select="$localXsdPrefix" />
@@ -43,6 +44,15 @@
 				<xsl:sequence select="concat($fcnTargetNamespacePrefix,':',$input)" />
 			</xsl:otherwise>
 		</xsl:choose>
+	</xsl:function>
+	
+	<!-- 获得谓词 -->
+	<xsl:function name="fcn:getPredicate" as="xsd:string">
+		<xsl:param name="input" />
+		<xsl:variable name="localName" select="fcn:getLocalName($input)" />
+		<xsl:variable name="nameHeader" select="substring($localName,1,1)" />
+		<xsl:variable name="nameTail" select="substring($localName,2)" />
+		<xsl:sequence select="concat($fcnPredicatePrefix,upper-case($nameHeader),$nameTail)" />
 	</xsl:function>
 
 	<!-- 获取input的全名 -->
