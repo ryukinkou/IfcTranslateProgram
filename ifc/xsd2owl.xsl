@@ -143,9 +143,11 @@
 
 			<owl:ObjectProperty rdf:ID="any" />
 
-			<!-- <xsl:call-template name="IfcListSuperClassTemplate" /> <xsl:call-template 
-				name="groupTranslationTemplate" /> <xsl:call-template name="wrapperTranslationTemplate" 
-				/> -->
+			<!-- <xsl:call-template name="groupTranslationTemplate" /> <xsl:call-template 
+				name="wrapperTranslationTemplate" /> -->
+
+			<!-- 列表基类 -->
+			<xsl:call-template name="IfcListSuperClassTemplate" />
 
 			<!-- Datatype转换模板 -->
 			<xsl:call-template name="datatypeTranslationTemplate" />
@@ -155,7 +157,7 @@
 				name="datatypePropertyAndObjectPropertyTranslationTemplate" />
 
 			<!-- 模板输出占位符 -->
-			<!-- <xsl:apply-templates /> -->
+			<xsl:apply-templates />
 
 		</rdf:RDF>
 
@@ -339,7 +341,7 @@
 		</xsl:choose>
 	</xsl:template>
 
-	<!-- 尚未检查 尚未应用新API -->
+	<!-- 集合的一种折衷方案，可以让区间确定的集合具备一定的推理能力 -->
 	<xsl:template name="IfcListTemplate">
 		<xsl:param name="classNamePrefix" />
 		<xsl:param name="minLength" />
@@ -351,25 +353,27 @@
 			<xsl:when test="$minLength = $maxLength">
 
 				<!-- 一个包装类，为了不改变名称 -->
-				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
+				<owl:Class rdf:about="{fcn:getFullName($classNamePrefix)}">
 					<owl:equivalentClass
-						rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+						rdf:resource="{fcn:getFullName(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<xsl:for-each select="1 to $minLength">
 					<xsl:choose>
-
 						<!-- 列表尾部元素处理，hasNext为EmptyList -->
 						<xsl:when test=". = $minLength">
+
 							<xsl:call-template name="IfcListItemTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
 								<xsl:with-param name="nextClassName" select="'EmptyList'" />
 								<xsl:with-param name="itemType" select="$itemType" />
 								<xsl:with-param name="isNextItemFixed" select="true()" />
 							</xsl:call-template>
+
 						</xsl:when>
 
 						<xsl:otherwise>
+
 							<!-- 列表对象处理 -->
 							<xsl:call-template name="IfcListItemTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
@@ -378,8 +382,8 @@
 								<xsl:with-param name="itemType" select="$itemType" />
 								<xsl:with-param name="isNextItemFixed" select="true()" />
 							</xsl:call-template>
-						</xsl:otherwise>
 
+						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:for-each>
 			</xsl:when>
@@ -388,9 +392,9 @@
 			<xsl:when test="$minLength &lt; $maxLength">
 
 				<!-- 包装列表的首个元素 -->
-				<owl:Class rdf:about="{fcn:getAbsoluteURIRef($classNamePrefix)}">
+				<owl:Class rdf:about="{fcn:getFullName($classNamePrefix)}">
 					<owl:equivalentClass
-						rdf:resource="{fcn:getAbsoluteURIRef(concat($classNamePrefix,'1'))}" />
+						rdf:resource="{fcn:getFullName(concat($classNamePrefix,'1'))}" />
 				</owl:Class>
 
 				<!-- 区间：1 <= i <= minLength -->
@@ -463,31 +467,31 @@
 	<!-- 列表基类 -->
 	<xsl:template name="IfcListSuperClassTemplate">
 
-		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('hasNext')}">
-			<rdfs:subPropertyOf rdf:resource="{fcn:getAbsoluteURIRef('isFollowedBy')}" />
+		<owl:ObjectProperty rdf:about="{fcn:getFullName('hasNext')}">
+			<rdfs:subPropertyOf rdf:resource="{fcn:getFullName('isFollowedBy')}" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('isFollowedBy')}">
+		<owl:ObjectProperty rdf:about="{fcn:getFullName('isFollowedBy')}">
 			<rdf:type rdf:resource="&amp;owl;TransitiveProperty" />
-			<rdfs:range rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
-			<rdfs:domain rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+			<rdfs:range rdf:resource="{fcn:getFullName('IfcList')}" />
+			<rdfs:domain rdf:resource="{fcn:getFullName('IfcList')}" />
 		</owl:ObjectProperty>
 
-		<owl:ObjectProperty rdf:about="{fcn:getAbsoluteURIRef('hasContent')}" />
-		<owl:DatatypeProperty rdf:about="{fcn:getAbsoluteURIRef('hasValue')}" />
+		<owl:ObjectProperty rdf:about="{fcn:getFullName('hasContent')}" />
+		<owl:DatatypeProperty rdf:about="{fcn:getFullName('hasValue')}" />
 
-		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('EmptyList')}">
-			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+		<owl:Class rdf:about="{fcn:getFullName('EmptyList')}">
+			<rdfs:subClassOf rdf:resource="{fcn:getFullName('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasContent')}" />
+							<owl:onProperty rdf:resource="{fcn:getFullName('hasContent')}" />
 							<owl:maxCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">0
 							</owl:maxCardinality>
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
+							<owl:onProperty rdf:resource="{fcn:getFullName('hasValue')}" />
 							<owl:maxQualifiedCardinality
 								rdf:datatype="&amp;xsd;nonNegativeInteger">0</owl:maxQualifiedCardinality>
 							<owl:onDataRange rdf:resource="&amp;xsd;anySimpleType" />
@@ -497,17 +501,17 @@
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('LoopList')}">
-			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+		<owl:Class rdf:about="{fcn:getFullName('LoopList')}">
+			<rdfs:subClassOf rdf:resource="{fcn:getFullName('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Class>
 					<owl:intersectionOf rdf:parseType="Collection">
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasContent')}" />
+							<owl:onProperty rdf:resource="{fcn:getFullName('hasContent')}" />
 							<owl:allValuesFrom rdf:resource="&amp;owl;Thing" />
 						</owl:Restriction>
 						<owl:Restriction>
-							<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
+							<owl:onProperty rdf:resource="{fcn:getFullName('hasValue')}" />
 							<owl:allValuesFrom rdf:resource="&amp;xsd;anySimpleType" />
 						</owl:Restriction>
 					</owl:intersectionOf>
@@ -515,11 +519,11 @@
 			</rdfs:subClassOf>
 		</owl:Class>
 
-		<owl:Class rdf:about="{fcn:getAbsoluteURIRef('IfcList')}">
+		<owl:Class rdf:about="{fcn:getFullName('IfcList')}">
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('isFollowedBy')}" />
-					<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+					<owl:onProperty rdf:resource="{fcn:getFullName('isFollowedBy')}" />
+					<owl:onClass rdf:resource="{fcn:getFullName('IfcList')}" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
 				</owl:Restriction>
@@ -533,24 +537,23 @@
 		<xsl:param name="className" />
 		<xsl:param name="nextClassName" />
 		<xsl:param name="itemType" />
-		<!-- 下一个元素是否必须 -->
 		<xsl:param name="isNextItemFixed" select="true()" />
 
-		<owl:Class rdf:about="{fcn:getAbsoluteURIRef($className)}">
-			<rdfs:subClassOf rdf:resource="{fcn:getAbsoluteURIRef('IfcList')}" />
+		<owl:Class rdf:about="{fcn:getFullName($className)}">
+			<rdfs:subClassOf rdf:resource="{fcn:getFullName('IfcList')}" />
 			<rdfs:subClassOf>
 				<owl:Restriction>
-					<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasValue')}" />
+					<owl:onProperty rdf:resource="{fcn:getFullName('hasValue')}" />
 					<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 					</owl:qualifiedCardinality>
-					<owl:onDataRange rdf:resource="{$itemType}" />
+					<owl:onDataRange rdf:resource="{fcn:getFullName($itemType)}" />
 				</owl:Restriction>
 			</rdfs:subClassOf>
 			<xsl:if test="$isNextItemFixed = true()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasNext')}" />
-						<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($nextClassName)}" />
+						<owl:onProperty rdf:resource="{fcn:getFullName('hasNext')}" />
+						<owl:onClass rdf:resource="{fcn:getFullName($nextClassName)}" />
 						<owl:qualifiedCardinality rdf:datatype="&amp;xsd;nonNegativeInteger">1
 						</owl:qualifiedCardinality>
 					</owl:Restriction>
@@ -559,8 +562,8 @@
 			<xsl:if test="$isNextItemFixed = false()">
 				<rdfs:subClassOf>
 					<owl:Restriction>
-						<owl:onProperty rdf:resource="{fcn:getAbsoluteURIRef('hasNext')}" />
-						<owl:onClass rdf:resource="{fcn:getAbsoluteURIRef($nextClassName)}" />
+						<owl:onProperty rdf:resource="{fcn:getFullName('hasNext')}" />
+						<owl:onClass rdf:resource="{fcn:getFullName($nextClassName)}" />
 						<owl:maxQualifiedCardinality
 							rdf:datatype="&amp;xsd;nonNegativeInteger">1</owl:maxQualifiedCardinality>
 					</owl:Restriction>
