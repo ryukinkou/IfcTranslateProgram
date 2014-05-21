@@ -45,14 +45,22 @@
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:function>
-	
+
 	<!-- 获得谓词 -->
 	<xsl:function name="fcn:getPredicate" as="xsd:string">
 		<xsl:param name="input" />
-		<xsl:variable name="localName" select="fcn:getLocalName($input)" />
-		<xsl:variable name="nameHeader" select="substring($localName,1,1)" />
-		<xsl:variable name="nameTail" select="substring($localName,2)" />
-		<xsl:sequence select="concat($fcnPredicatePrefix,upper-case($nameHeader),$nameTail)" />
+		<xsl:choose>
+			<xsl:when test="$input = ''">
+				<xsl:sequence select="$input" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:variable name="localName" select="fcn:getLocalName($input)" />
+				<xsl:variable name="nameHeader" select="substring($localName,1,1)" />
+				<xsl:variable name="nameTail" select="substring($localName,2)" />
+				<xsl:sequence
+					select="concat($fcnPredicatePrefix,upper-case($nameHeader),$nameTail)" />
+			</xsl:otherwise>
+		</xsl:choose>
 	</xsl:function>
 
 	<!-- 获取input的全名 -->

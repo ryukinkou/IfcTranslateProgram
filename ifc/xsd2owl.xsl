@@ -123,7 +123,8 @@
 		<xsl:text disable-output-escaping="yes">]&gt;&#10;</xsl:text>
 		<!-- DTD END -->
 
-		<rdf:RDF>
+		<rdf:RDF xml:base="{$targetNamespace}" >
+		
 			<!-- 输出本地Namespace，命名空间暂时定义为'&name();' -->
 			<xsl:variable name="localNamespacesTemp">
 				<xsl:for-each select="$localNamespaces">
@@ -131,6 +132,10 @@
 				</xsl:for-each>
 			</xsl:variable>
 			<xsl:copy-of select="$localNamespacesTemp/*/namespace::*" />
+			<xsl:variable name="baseNamespacesTemp">
+				<xsl:element name="{'base'}:x" namespace="{$targetNamespace}" />
+			</xsl:variable>
+			<xsl:copy-of select="$baseNamespacesTemp/*/namespace::*" />
 
 			<!-- 本体的顶级信息定义 -->
 			<owl:Ontology rdf:about="{$targetNamespace}">
