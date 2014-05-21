@@ -83,6 +83,7 @@
 		]"
 		use="concat(@name,'|',@type)" />
 
+	<!-- schema的匹配模板 -->
 	<xsl:template match="/xsd:schema">
 
 		<!-- DTD START -->
