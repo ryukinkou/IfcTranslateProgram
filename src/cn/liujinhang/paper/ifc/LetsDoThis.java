@@ -13,7 +13,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-public class Translation {
+public class LetsDoThis {
 
 	public static void main(String[] args) throws Throwable {
 
@@ -51,7 +51,7 @@ public class Translation {
 		result = result.replaceAll("&amp;", "&");
 
 		File file = new File(System.getProperty("user.dir")
-				+ "/ifc/ifcOWL.owl");
+				+ "/ifc/ifcOWL_stage1.owl");
 
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
 		bufferedWriter.write(result);

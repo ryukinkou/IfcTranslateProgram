@@ -94,6 +94,7 @@
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY xml 'http://www.w3.org/XML/1998/namespace#' &gt;&#10;</xsl:text>
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY xlink 'http://www.w3.org/1999/xlink#' &gt;&#10;</xsl:text>
 		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY owl 'http://www.w3.org/2002/07/owl#' &gt;&#10;</xsl:text>
+		<xsl:text disable-output-escaping="yes">&#09;&lt;!ENTITY rdfs 'http://www.w3.org/2000/01/rdf-schema#' &gt;&#10;</xsl:text>
 
 		<!-- 输出本地命名空间的DTD -->
 		<xsl:for-each select="$localNamespaces">
@@ -123,8 +124,8 @@
 		<xsl:text disable-output-escaping="yes">]&gt;&#10;</xsl:text>
 		<!-- DTD END -->
 
-		<rdf:RDF xml:base="{$targetNamespace}" >
-		
+		<rdf:RDF xml:base="{$targetNamespace}">
+
 			<!-- 输出本地Namespace，命名空间暂时定义为'&name();' -->
 			<xsl:variable name="localNamespacesTemp">
 				<xsl:for-each select="$localNamespaces">
@@ -144,8 +145,11 @@
 
 			<owl:ObjectProperty rdf:ID="any" />
 
+			<!-- 自定义注解属性输出模板 -->
+			<xsl:call-template name="annotationPropertyGenerateTemplate" />
+
 			<!-- 列表基类输出模板 -->
-			<xsl:call-template name="IfcListSuperClassTemplate" />
+			<xsl:call-template name="IfcListSuperClassGenerateTemplate" />
 
 			<!-- datatype的转换模板 -->
 			<xsl:call-template name="datatypeTranslationTemplate" />
@@ -167,12 +171,50 @@
 
 	</xsl:template>
 
+	<xsl:template name="annotationPropertyGenerateTemplate">
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('definition')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;rdfs;comment" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('fullName')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;rdfs;label" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('guid')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;rdfs;label" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('shortName')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;rdfs;label" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('status')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;owl;versionInfo" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('versionDate')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;owl;versionInfo" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('versionId')}">
+			<rdfs:subPropertyOf rdf:resource="&amp;owl;versionInfo" />
+		</owl:AnnotationProperty>
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('lexeme')}" />
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('blobstoreKey')}" />
+
+		<owl:AnnotationProperty rdf:about="{fcn:getFullName('illustrationUrl')}" />
+
+	</xsl:template>
+
 	<!-- Datatype的转换模板 -->
 	<xsl:template name="datatypeTranslationTemplate">
 		<xsl:for-each
 			select="/xsd:schema/xsd:simpleType[@name and fcn:isNameIgnored(@name) = false()]">
 			<xsl:choose>
-				<xsl:when test=" fcn:isDatatypeDefinition(./@name)">
+				<xsl:when test="fcn:isDatatypeDefinition(./@name)">
 
 					<rdfs:Datatype rdf:about="{fcn:getFullName(./@name)}">
 						<owl:equivalentClass rdf:resource="{fcn:getFullName(./xsd:restriction/@base)}" />
@@ -881,7 +923,7 @@
 						<!-- 列表尾部元素处理，hasNext为EmptyList -->
 						<xsl:when test=". = $minLength">
 
-							<xsl:call-template name="IfcListItemTemplate">
+							<xsl:call-template name="IfcListItemGenerateTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
 								<xsl:with-param name="nextClassName" select="'EmptyList'" />
 								<xsl:with-param name="itemType" select="$itemType" />
@@ -893,7 +935,7 @@
 						<xsl:otherwise>
 
 							<!-- 列表对象处理 -->
-							<xsl:call-template name="IfcListItemTemplate">
+							<xsl:call-template name="IfcListItemGenerateTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
 								<xsl:with-param name="nextClassName"
 									select="concat($classNamePrefix,(. + 1))" />
@@ -920,7 +962,7 @@
 					<xsl:choose>
 						<!-- 区间尾部元素，hasNext为非必须项 -->
 						<xsl:when test=". = $minLength">
-							<xsl:call-template name="IfcListItemTemplate">
+							<xsl:call-template name="IfcListItemGenerateTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
 								<xsl:with-param name="nextClassName"
 									select="concat($classNamePrefix,(. + 1))" />
@@ -930,7 +972,7 @@
 						</xsl:when>
 						<!-- 区间元素，hasNext为必须项 -->
 						<xsl:otherwise>
-							<xsl:call-template name="IfcListItemTemplate">
+							<xsl:call-template name="IfcListItemGenerateTemplate">
 								<xsl:with-param name="className" select="concat($classNamePrefix,.)" />
 								<xsl:with-param name="nextClassName"
 									select="concat($classNamePrefix,(. + 1))" />
@@ -949,7 +991,7 @@
 						<xsl:choose>
 							<!-- 区间尾部元素 hasNext为EmptyList -->
 							<xsl:when test=". = $maxLength">
-								<xsl:call-template name="IfcListItemTemplate">
+								<xsl:call-template name="IfcListItemGenerateTemplate">
 									<xsl:with-param name="className"
 										select="concat($classNamePrefix,.)" />
 									<xsl:with-param name="nextClassName" select="'EmptyList'" />
@@ -959,7 +1001,7 @@
 							</xsl:when>
 							<!-- 区间元素 hasNext为非必须项 -->
 							<xsl:otherwise>
-								<xsl:call-template name="IfcListItemTemplate">
+								<xsl:call-template name="IfcListItemGenerateTemplate">
 									<xsl:with-param name="className"
 										select="concat($classNamePrefix,.)" />
 									<xsl:with-param name="nextClassName"
@@ -983,7 +1025,7 @@
 	</xsl:template>
 
 	<!-- 列表基类 -->
-	<xsl:template name="IfcListSuperClassTemplate">
+	<xsl:template name="IfcListSuperClassGenerateTemplate">
 
 		<owl:ObjectProperty rdf:about="{fcn:getFullName('hasNext')}">
 			<rdfs:subPropertyOf rdf:resource="{fcn:getFullName('isFollowedBy')}" />
@@ -1050,7 +1092,7 @@
 
 	</xsl:template>
 
-	<xsl:template name="IfcListItemTemplate">
+	<xsl:template name="IfcListItemGenerateTemplate">
 
 		<xsl:param name="className" />
 		<xsl:param name="nextClassName" />
