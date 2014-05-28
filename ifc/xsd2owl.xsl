@@ -1053,7 +1053,7 @@
 		</owl:ObjectProperty>
 
 		<owl:ObjectProperty rdf:about="{fcn:getFullName('isFollowedBy')}">
-			<rdf:type rdf:resource="&amp;owl;TransitiveProperty" />
+			<!-- <rdf:type rdf:resource="&amp;owl;TransitiveProperty" /> -->
 			<rdfs:range rdf:resource="{fcn:getFullName('IfcList')}" />
 			<rdfs:domain rdf:resource="{fcn:getFullName('IfcList')}" />
 		</owl:ObjectProperty>
