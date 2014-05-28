@@ -451,35 +451,11 @@
 					</xsl:variable>
 
 					<xsl:variable name="minOccurs">
-						<xsl:choose>
-							<xsl:when test="@minOccurs">
-								<xsl:value-of select="@minOccurs" />
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:choose>
-									<xsl:when test="@use='required'">
-										<xsl:value-of select="1" />
-									</xsl:when>
-									<xsl:when test="@use='optional' or nillable='true'">
-										<xsl:value-of select="0" />
-									</xsl:when>
-									<xsl:otherwise>
-										<xsl:value-of select="0" />
-									</xsl:otherwise>
-								</xsl:choose>
-							</xsl:otherwise>
-						</xsl:choose>
+						<xsl:value-of select="fcn:getMinOccurs(@minOccurs,@use,@nillable)" />
 					</xsl:variable>
 
 					<xsl:variable name="maxOccurs">
-						<xsl:choose>
-							<xsl:when test="@maxOccurs">
-								<xsl:value-of select="@maxOccurs" />
-							</xsl:when>
-							<xsl:otherwise>
-								<xsl:value-of select="'unbounded'" />
-							</xsl:otherwise>
-						</xsl:choose>
+						<xsl:value-of select="fcn:getMaxOccurs(@maxOccurs)" />
 					</xsl:variable>
 
 					<xsl:choose>
@@ -623,6 +599,29 @@
 										</rdfs:subClassOf>
 									</xsl:when>
 
+									<!-- complexType，类型为sequence -->
+									<xsl:when
+										test="
+										$currentName and ./xsd:complexType and 
+										./xsd:complexType/xsd:sequence/xsd:element/@ref">
+										<rdfs:subClassOf>
+											<owl:Restriction>
+												<owl:onProperty
+													rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+												<xsl:call-template name="cardinalityTemplate">
+													<xsl:with-param name="type"
+														select="./xsd:complexType/xsd:sequence/xsd:element/@ref" />
+													<xsl:with-param name="isDatatypeProperty"
+														select="false()" />
+													<xsl:with-param name="minOccurs"
+														select="fcn:getMinOccurs(./xsd:complexType/xsd:sequence/xsd:element/@minOccurs,@use,@nillable)" />
+													<xsl:with-param name="maxOccurs"
+														select="fcn:getMaxOccurs(./xsd:complexType/xsd:sequence/xsd:element/@maxOccurs)" />
+												</xsl:call-template>
+											</owl:Restriction>
+										</rdfs:subClassOf>
+									</xsl:when>
+
 									<xsl:otherwise>
 										<!-- KEEP it -->
 									</xsl:otherwise>
@@ -697,6 +696,7 @@
 											./xsd:complexType and 
 											./xsd:complexType/xsd:group/@ref">
 										<owl:Restriction>
+											<!-- TODO -->
 											<owl:onProperty
 												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
 											<xsl:call-template name="cardinalityTemplate">
@@ -745,6 +745,27 @@
 													select="false()" />
 												<xsl:with-param name="minOccurs" select="$minOccurs" />
 												<xsl:with-param name="maxOccurs" select="$maxOccurs" />
+											</xsl:call-template>
+										</owl:Restriction>
+									</xsl:when>
+
+									<!-- complexType，类型为sequence -->
+									<xsl:when
+										test="
+										$currentName and ./xsd:complexType and 
+										./xsd:complexType/xsd:sequence/xsd:element/@ref">
+										<owl:Restriction>
+											<owl:onProperty
+												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
+											<xsl:call-template name="cardinalityTemplate">
+												<xsl:with-param name="type"
+													select="./xsd:complexType/xsd:sequence/xsd:element/@ref" />
+												<xsl:with-param name="isDatatypeProperty"
+													select="false()" />
+												<xsl:with-param name="minOccurs"
+													select="fcn:getMinOccurs(./xsd:complexType/xsd:sequence/xsd:element/@minOccurs,@use,@nillable)" />
+												<xsl:with-param name="maxOccurs"
+													select="fcn:getMaxOccurs(./xsd:complexType/xsd:sequence/xsd:element/@maxOccurs)" />
 											</xsl:call-template>
 										</owl:Restriction>
 									</xsl:when>

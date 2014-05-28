@@ -202,4 +202,41 @@
 			select="fcn:isIgnoredByNameList($name) or fcn:isNameIgnoredByPattern($name)" />
 	</xsl:function>
 
+	<!-- 获取minOccurs -->
+	<xsl:function name="fcn:getMinOccurs">
+		<xsl:param name="minOccurs" />
+		<xsl:param name="use" required="no" />
+		<xsl:param name="nillable" required="no" />
+		<xsl:choose>
+			<xsl:when test="$minOccurs">
+				<xsl:sequence select="$minOccurs" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:choose>
+					<xsl:when test="$use='required'">
+						<xsl:sequence select="1" />
+					</xsl:when>
+					<xsl:when test="$use='optional' or $nillable='true'">
+						<xsl:sequence select="0" />
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:sequence select="0" />
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:function>
+
+	<!-- 获取maxOccurs -->
+	<xsl:function name="fcn:getMaxOccurs">
+		<xsl:param name="maxOccurs" required="no" />
+		<xsl:choose>
+			<xsl:when test="$maxOccurs">
+				<xsl:value-of select="$maxOccurs" />
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="'unbounded'" />
+			</xsl:otherwise>
+		</xsl:choose>
+	</xsl:function>
 </xsl:stylesheet>
