@@ -223,7 +223,7 @@
 				</xsl:when>
 
 				<xsl:otherwise>
-					<!-- KEEP it -->
+					<!-- CHECK -->
 				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:for-each>
@@ -297,7 +297,7 @@
 						</xsl:when>
 
 						<xsl:otherwise>
-							<!-- KEEP it -->
+							<!-- CHECK -->
 						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:when>
@@ -324,13 +324,13 @@
 
 						</xsl:when>
 						<xsl:otherwise>
-							<!-- KEEP it -->
+							<!-- CHECK -->
 						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:when>
 
 				<xsl:otherwise>
-					<!-- KEEP it -->
+					<!-- CHECK -->
 				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:for-each>
@@ -383,7 +383,7 @@
 			</xsl:when>
 
 			<xsl:otherwise>
-				<!-- KEEP it -->
+				<!-- CHECK -->
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -412,7 +412,7 @@
 				</owl:Class>
 			</xsl:when>
 			<xsl:otherwise>
-				<!-- KEEP it -->
+				<!-- CHECK -->
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -604,6 +604,9 @@
 										test="
 										$currentName and ./xsd:complexType and 
 										./xsd:complexType/xsd:sequence/xsd:element/@ref">
+
+										<!-- NEED TO FIX : property generation -->
+
 										<rdfs:subClassOf>
 											<owl:Restriction>
 												<owl:onProperty
@@ -623,7 +626,7 @@
 									</xsl:when>
 
 									<xsl:otherwise>
-										<!-- KEEP it -->
+										<!-- CHECK -->
 									</xsl:otherwise>
 								</xsl:choose>
 							</xsl:if>
@@ -754,6 +757,9 @@
 										test="
 										$currentName and ./xsd:complexType and 
 										./xsd:complexType/xsd:sequence/xsd:element/@ref">
+
+										<!-- NEED TO FIX : property generation -->
+
 										<owl:Restriction>
 											<owl:onProperty
 												rdf:resource="{fcn:getFullName(fcn:getPredicate($currentName))}" />
@@ -771,7 +777,7 @@
 									</xsl:when>
 
 									<xsl:otherwise>
-										<!-- KEEP it -->
+										<!-- CHECK -->
 									</xsl:otherwise>
 								</xsl:choose>
 							</xsl:if>
@@ -824,18 +830,18 @@
 									</rdfs:subClassOf>
 								</xsl:when>
 								<xsl:otherwise>
-									<!-- KEEP it -->
+									<!-- CHECK -->
 								</xsl:otherwise>
 							</xsl:choose>
 						</xsl:when>
 						<xsl:otherwise>
-							<!-- KEEP it -->
+							<!-- CHECK -->
 						</xsl:otherwise>
 					</xsl:choose>
 				</xsl:for-each>
 			</xsl:when>
 			<xsl:otherwise>
-				<!-- KEEP it -->
+				<!-- CHECK -->
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:template>
@@ -886,7 +892,7 @@
 					<owl:ObjectProperty rdf:about="{fcn:getFullName(fcn:getPredicate($base))}" />
 				</xsl:when>
 				<xsl:otherwise>
-					<!-- KEEP it -->
+					<!-- CHECK -->
 				</xsl:otherwise>
 			</xsl:choose>
 

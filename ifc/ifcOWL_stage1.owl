@@ -46,7 +46,6 @@
       <rdfs:subPropertyOf rdf:resource="http://www.buildingsmart-tech.org/ifcXML/IFC4/final#isFollowedBy"/>
    </owl:ObjectProperty>
    <owl:ObjectProperty rdf:about="http://www.buildingsmart-tech.org/ifcXML/IFC4/final#isFollowedBy">
-      <rdf:type rdf:resource="&owl;TransitiveProperty"/>
       <rdfs:range rdf:resource="http://www.buildingsmart-tech.org/ifcXML/IFC4/final#IfcList"/>
       <rdfs:domain rdf:resource="http://www.buildingsmart-tech.org/ifcXML/IFC4/final#IfcList"/>
    </owl:ObjectProperty>
