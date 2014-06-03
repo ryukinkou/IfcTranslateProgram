@@ -145,6 +145,9 @@
 			</owl:Ontology>
 
 			<owl:ObjectProperty rdf:ID="any" />
+			
+			<!-- bug fix -->
+			<owl:ObjectProperty rdf:about="{fcn:getFullName('hasWeightsData')}" />
 
 			<!-- 自定义注解属性输出模板 -->
 			<xsl:call-template name="annotationPropertyGenerateTemplate" />
